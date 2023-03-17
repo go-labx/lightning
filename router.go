@@ -1,3 +1,7 @@
+/*
+Package lightning
+The `lightning` package is a Go library that provides a lightweight, high-performance HTTP router.
+*/
 package lightning
 
 import (
@@ -5,12 +9,16 @@ import (
 	"strings"
 )
 
+/*
+TrieNode
+The `TrieNode` struct represents a node in the trie data structure used by the router. It contains the following fields:
+*/
 type TrieNode struct {
 	children map[string]*TrieNode
-	isEnd    bool
-	handler  HandlerFunc
-	params   map[string]int
-	wildcard string
+	isEnd    bool           // boolean flag indicating whether the node marks the end of a route
+	handler  HandlerFunc    // a `HandlerFunc` function that handles requests for the node's route
+	params   map[string]int // a map of parameter names and their corresponding indices in the route pattern
+	wildcard string         // a string representing the name of the wildcard parameter in the route pattern (if any)
 }
 
 type Router struct {
