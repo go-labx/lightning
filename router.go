@@ -20,6 +20,19 @@ type Router struct {
 	roots map[string]*TrieNode
 }
 
+// parsePattern splits a route pattern string into its individual parts.
+func parsePattern(pattern string) []string {
+	parts := strings.Split(pattern, "/")
+	result := make([]string, 0)
+	for _, part := range parts {
+		if part != "" {
+			result = append(result, part)
+		}
+	}
+
+	return result
+}
+
 // NewTrieNode creates a new instance of the `TrieNode` struct with default values.
 func NewTrieNode() *TrieNode {
 	return &TrieNode{
@@ -116,19 +129,6 @@ func (r *Router) FindRoute(method string, pattern string) (HandlerFunc, map[stri
 	}
 
 	return root.handler, params
-}
-
-// parsePattern splits a route pattern string into its individual parts.
-func parsePattern(pattern string) []string {
-	parts := strings.Split(pattern, "/")
-	result := make([]string, 0)
-	for _, part := range parts {
-		if part != "" {
-			result = append(result, part)
-		}
-	}
-
-	return result
 }
 
 // HTTP Method Functions
