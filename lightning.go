@@ -39,10 +39,10 @@ func (app *Application) GET(pattern string, handler HandlerFunc) {
 }
 
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	if handler, params := app.router.FindHandler(req.Method, req.URL.Path); handler != nil {
+	if handler, params := app.router.FindRoute(req.Method, req.URL.Path); handler != nil {
 		ctx := NewContext(w, req)
 		ctx.SetParams(params)
-		
+
 		handler(ctx)
 	} else {
 		_, err := fmt.Fprintf(w, "404 Not Found: %s\\n", req.URL)

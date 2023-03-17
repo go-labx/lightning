@@ -1,7 +1,4 @@
-/*
-Package lightning
-The `lightning` package is a Go library that provides a lightweight, high-performance HTTP router.
-*/
+// Package lightning is a Go library that provides a lightweight, high-perform
 package lightning
 
 import (
@@ -9,22 +6,21 @@ import (
 	"strings"
 )
 
-/*
-TrieNode
-The `TrieNode` struct represents a node in the trie data structure used by the router. It contains the following fields:
-*/
+// TrieNode represents a node in the trie data structure used by the router.
 type TrieNode struct {
-	children map[string]*TrieNode
-	isEnd    bool           // boolean flag indicating whether the node marks the end of a route
-	handler  HandlerFunc    // a `HandlerFunc` function that handles requests for the node's route
-	params   map[string]int // a map of parameter names and their corresponding indices in the route pattern
-	wildcard string         // a string representing the name of the wildcard parameter in the route pattern (if any)
+	children map[string]*TrieNode // A map of child nodes keyed by their string values
+	isEnd    bool                 // boolean flag indicating whether the node marks the end of a route
+	handler  HandlerFunc          // a `HandlerFunc` function that handles requests for the node's route
+	params   map[string]int       // a map of parameter names and their corresponding indices in the route pattern
+	wildcard string               // a string representing the name of the wildcard parameter in the route pattern (if any)
 }
 
+// Router represents the HTTP router.
 type Router struct {
 	roots map[string]*TrieNode
 }
 
+// NewTrieNode creates a new instance of the `TrieNode` struct with default values.
 func NewTrieNode() *TrieNode {
 	return &TrieNode{
 		children: make(map[string]*TrieNode),
@@ -35,12 +31,14 @@ func NewTrieNode() *TrieNode {
 	}
 }
 
+// NewRouter creates a new instance of the `Router` struct with an empty `roots` map.
 func NewRouter() *Router {
 	return &Router{
 		roots: make(map[string]*TrieNode),
 	}
 }
 
+// AddRoute adds a new route to the router.
 func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
 	root, ok := r.roots[method]
 	if !ok {
@@ -82,7 +80,8 @@ func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
 	root.params = params
 }
 
-func (r *Router) FindHandler(method string, pattern string) (HandlerFunc, map[string]string) {
+// FindRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
+func (r *Router) FindRoute(method string, pattern string) (HandlerFunc, map[string]string) {
 	root, ok := r.roots[method]
 	if !ok {
 		return nil, nil
@@ -119,6 +118,7 @@ func (r *Router) FindHandler(method string, pattern string) (HandlerFunc, map[st
 	return root.handler, params
 }
 
+// parsePattern splits a route pattern string into its individual parts.
 func parsePattern(pattern string) []string {
 	parts := strings.Split(pattern, "/")
 	result := make([]string, 0)
@@ -131,30 +131,39 @@ func parsePattern(pattern string) []string {
 	return result
 }
 
+// HTTP Method Functions
+
+// Get adds a GET route to the router.
 func (r *Router) Get(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodGet, path, handler)
 }
 
+// Post adds a POST route to the router.
 func (r *Router) Post(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodPost, path, handler)
 }
 
+// Put adds a PUT route to the router.
 func (r *Router) Put(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodPut, path, handler)
 }
 
+// Delete adds a DELETE route to the router.
 func (r *Router) Delete(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodDelete, path, handler)
 }
 
+// Head adds a HEAD route to the router.
 func (r *Router) Head(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodHead, path, handler)
 }
 
+// Patch adds a PATCH route to the router.
 func (r *Router) Patch(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodPatch, path, handler)
 }
 
+// Options adds an OPTIONS route to the router.
 func (r *Router) Options(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodOptions, path, handler)
 }
