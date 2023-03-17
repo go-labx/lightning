@@ -7,8 +7,10 @@ import (
 
 type TrieNode struct {
 	children map[string]*TrieNode
-	isLeaf   bool
+	isEnd    bool
 	handler  HandlerFunc
+	params   map[string]int
+	wildcard string
 }
 
 type Router struct {
@@ -18,8 +20,10 @@ type Router struct {
 func NewTrieNode() *TrieNode {
 	return &TrieNode{
 		children: make(map[string]*TrieNode),
-		isLeaf:   false,
+		isEnd:    false,
 		handler:  nil,
+		params:   make(map[string]int),
+		wildcard: "",
 	}
 }
 
@@ -36,31 +40,75 @@ func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
 		r.roots[method] = root
 	}
 
+	params := make(map[string]int)
 	parts := parsePattern(pattern)
-	for _, part := range parts {
-		if root.children[part] == nil {
-			root.children[part] = NewTrieNode()
-		}
-		root = root.children[part]
-	}
-
-	root.isLeaf = true
-	root.handler = handler
-}
-
-func (r *Router) FindHandler(method string, pattern string) HandlerFunc {
-	root, ok := r.roots[method]
-	if !ok {
-		return nil
-	}
-
-	parts := parsePattern(pattern)
-	for _, part := range parts {
-		if root.children[part] != nil {
+	for i, part := range parts {
+		if part[0] == ':' {
+			// parameter
+			name := part[1:]
+			params[name] = i
+			if root.children[":"] == nil {
+				root.children[":"] = NewTrieNode()
+			}
+			root = root.children[":"]
+		} else if part[0] == '*' {
+			// wildcard
+			name := part[1:]
+			if root.children["*"] == nil {
+				root.children["*"] = NewTrieNode()
+			}
+			root = root.children["*"]
+			root.wildcard = name
+			break
+		} else {
+			// static
+			if root.children[part] == nil {
+				root.children[part] = NewTrieNode()
+			}
 			root = root.children[part]
 		}
 	}
-	return root.handler
+
+	root.isEnd = true
+	root.handler = handler
+	root.params = params
+}
+
+func (r *Router) FindHandler(method string, pattern string) (HandlerFunc, map[string]string) {
+	root, ok := r.roots[method]
+	if !ok {
+		return nil, nil
+	}
+	params := make(map[string]string)
+	values := make(map[int]string)
+
+	parts := parsePattern(pattern)
+	for i, part := range parts {
+		if root.children[part] != nil {
+			root = root.children[part]
+		} else if root.children[":"] != nil {
+			root = root.children[":"]
+			values[i] = part
+		} else if root.children["*"] != nil {
+			root = root.children["*"]
+			if root.wildcard != "" {
+				params[root.wildcard] = strings.Join(parts[i:], "/")
+			}
+			break
+		} else {
+			return nil, nil
+		}
+	}
+
+	if !root.isEnd {
+		return nil, nil
+	}
+
+	for name, index := range root.params {
+		params[name] = values[index]
+	}
+
+	return root.handler, params
 }
 
 func parsePattern(pattern string) []string {

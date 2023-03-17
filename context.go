@@ -11,6 +11,7 @@ type Context struct {
 	req    *http.Request
 	Method string
 	Path   string
+	params map[string]string
 }
 
 func NewContext(writer http.ResponseWriter, req *http.Request) *Context {
@@ -22,9 +23,25 @@ func NewContext(writer http.ResponseWriter, req *http.Request) *Context {
 	}
 }
 
+func (c *Context) SetParams(params map[string]string) {
+	c.params = params
+}
+
 func (c *Context) Param(key string) string {
+	return c.params[key]
+}
+
+func (c *Context) Params() map[string]string {
+	return c.params
+}
+
+func (c *Context) Query(key string) string {
 	return c.req.URL.Query().Get(key)
 }
+
+//func (c *Context) Param(key string) string {
+//	return c.req.URL.Query().Get(key)
+//}
 
 func (c *Context) SetStatus(code int) {
 	c.writer.WriteHeader(code)
