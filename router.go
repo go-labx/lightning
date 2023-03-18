@@ -53,6 +53,9 @@ func NewRouter() *Router {
 
 // AddRoute adds a new route to the router.
 func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
+	if !isValidHTTPMethod(method) {
+		return
+	}
 	root, ok := r.roots[method]
 	if !ok {
 		root = NewTrieNode()
@@ -166,4 +169,12 @@ func (r *Router) Patch(path string, handler HandlerFunc) {
 // Options adds an OPTIONS route to the router.
 func (r *Router) Options(path string, handler HandlerFunc) {
 	r.AddRoute(http.MethodOptions, path, handler)
+}
+
+func isValidHTTPMethod(method string) bool {
+	switch method {
+	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":
+		return true
+	}
+	return false
 }
