@@ -103,9 +103,7 @@ func (app *Application) Options(pattern string, handler HandlerFunc, middlewares
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if handler, params := app.router.FindRoute(req.Method, req.URL.Path); handler != nil {
-		ctx := NewContext(w, req)
-		ctx.SetParams(params)
-
+		ctx := NewContext(w, req, params)
 		handler(ctx)
 	} else {
 		_, err := fmt.Fprintf(w, "404 Not Found: %s\\n", req.URL)
