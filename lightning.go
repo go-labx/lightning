@@ -2,7 +2,7 @@ package lightning
 
 import (
 	"fmt"
-	"log"
+	"github.com/go-labx/lightlog"
 	"net/http"
 )
 
@@ -39,12 +39,15 @@ type MiddlewareFunc func(ctx *Context, next Next)
 type Application struct {
 	router      *Router
 	middlewares []MiddlewareFunc
+	logger      *lightlog.ConsoleLogger
 }
 
 // App returns a new instance of the Application struct.
 func App() *Application {
 	return &Application{
-		router: NewRouter(),
+		router:      NewRouter(),
+		middlewares: make([]MiddlewareFunc, 0),
+		logger:      lightlog.NewConsoleLogger("logger", lightlog.TRACE),
 	}
 }
 
@@ -57,7 +60,8 @@ func (app *Application) Use(middlewares ...MiddlewareFunc) {
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
 // to form a single MiddlewareFunc, and then adds it to the Router.
 func (app *Application) AddRoute(method string, pattern string, handler HandlerFunc, middlewares ...MiddlewareFunc) {
-	log.Printf("register route %s %s ->", method, pattern)
+	app.logger.Trace("register route %s -> %s", method, pattern)
+
 	fn := Compose(Compose(app.middlewares...), Compose(middlewares...), func(ctx *Context, next Next) {
 		handler(ctx)
 	})
