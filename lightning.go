@@ -120,7 +120,8 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // Run starts the HTTP server and listens for incoming requests.
-func (app *Application) Run(addr string) {
+func (app *Application) Run() {
+	addr := "127.0.0.1:6789"
 	app.logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
 
 	err := http.ListenAndServe(addr, app)
