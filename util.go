@@ -1,6 +1,8 @@
 package lightning
 
-import "strings"
+import (
+	"strings"
+)
 
 // ParsePattern splits a route pattern string into its individual parts.
 func ParsePattern(pattern string) []string {

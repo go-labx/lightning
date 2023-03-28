@@ -12,17 +12,17 @@ func TestCookie_Del(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		cookies Cookie
+		cookies Cookies
 		args    args
 	}{
 		{
 			name:    "TestCookie_Del",
-			cookies: Cookie{"test": &http.Cookie{Name: "test", Value: "value"}},
+			cookies: Cookies{"test": &http.Cookie{Name: "test", Value: "value"}},
 			args:    args{key: "test"},
 		},
 		{
 			name:    "TestCookie_Del_NotExist",
-			cookies: Cookie{},
+			cookies: Cookies{},
 			args:    args{key: "test"},
 		},
 	}
@@ -42,19 +42,19 @@ func TestCookie_Get(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		cookies Cookie
+		cookies Cookies
 		args    args
 		want    *http.Cookie
 	}{
 		{
 			name:    "TestCookie_Get",
-			cookies: Cookie{"test": &http.Cookie{Name: "test", Value: "test"}},
+			cookies: Cookies{"test": &http.Cookie{Name: "test", Value: "test"}},
 			args:    args{key: "test"},
 			want:    &http.Cookie{Name: "test", Value: "test"},
 		},
 		{
 			name:    "TestCookie_Get_NotExist",
-			cookies: Cookie{},
+			cookies: Cookies{},
 			args:    args{key: "test"},
 			want:    nil,
 		},
@@ -75,12 +75,12 @@ func TestCookie_Set(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		cookies Cookie
+		cookies Cookies
 		args    args
 	}{
 		{
 			name:    "TestCookie_Set",
-			cookies: Cookie{},
+			cookies: Cookies{},
 			args:    args{key: "test", value: "test"},
 		},
 	}
@@ -103,12 +103,12 @@ func TestCookie_SetCustom(t *testing.T) {
 	}
 	tests := []struct {
 		name    string
-		cookies Cookie
+		cookies Cookies
 		args    args
 	}{
 		{
 			name:    "TestCookie_SetCustom",
-			cookies: Cookie{},
+			cookies: Cookies{},
 			args:    args{cookie: &http.Cookie{Name: "test", Value: "test"}},
 		},
 	}
