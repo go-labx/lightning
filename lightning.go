@@ -111,7 +111,8 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		handler(ctx)
 		defer ctx.response.flush()
 	} else {
-		_, err := fmt.Fprintf(w, "404 Not Found: %s\\n", req.URL)
+		w.WriteHeader(http.StatusNotFound)
+		_, err := fmt.Fprintf(w, "404 Not Found: %s", req.URL)
 		if err != nil {
 			return
 		}
