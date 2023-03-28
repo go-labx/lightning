@@ -60,7 +60,7 @@ func (app *Application) Use(middlewares ...MiddlewareFunc) {
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
 // to form a single MiddlewareFunc, and then adds it to the Router.
 func (app *Application) AddRoute(method string, pattern string, handler HandlerFunc, middlewares ...MiddlewareFunc) {
-	app.logger.Trace("register route %s -> %s", method, pattern)
+	app.logger.Trace("register route %s\t-> %s", method, pattern)
 
 	fn := Compose(Compose(app.middlewares...), Compose(middlewares...), func(ctx *Context, next Next) {
 		handler(ctx)
