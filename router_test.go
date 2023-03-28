@@ -228,7 +228,7 @@ func Test_parsePattern(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run("case #"+string(rune(i)), func(t *testing.T) {
-			if got := parsePattern(tt.pattern); !reflect.DeepEqual(got, tt.expected) {
+			if got := ParsePattern(tt.pattern); !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("parsePattern() = %v, want %v", got, tt.expected)
 			}
 		})

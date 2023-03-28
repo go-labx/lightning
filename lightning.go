@@ -109,6 +109,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if handler, params := app.router.FindRoute(req.Method, req.URL.Path); handler != nil {
 		ctx := NewContext(w, req, params)
 		handler(ctx)
+		defer ctx.response.flush()
 	} else {
 		_, err := fmt.Fprintf(w, "404 Not Found: %s\\n", req.URL)
 		if err != nil {
@@ -119,5 +120,6 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 // Run starts the HTTP server and listens for incoming requests.
 func (app *Application) Run(addr string) (err error) {
+	app.logger.Info("app addr: %s", addr)
 	return http.ListenAndServe(addr, app)
 }
