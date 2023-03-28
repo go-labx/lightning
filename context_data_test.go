@@ -31,6 +31,9 @@ func TestContextData_Del(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.c.Del(tt.args.key)
+			if !reflect.DeepEqual(tt.c, tt.want) {
+				t.Errorf("Del() = %v, want %v", tt.c, tt.want)
+			}
 		})
 	}
 }
@@ -100,6 +103,9 @@ func TestContextData_Set(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.c.Set(tt.args.key, tt.args.value)
+			if !reflect.DeepEqual(tt.c, tt.want) {
+				t.Errorf("Set() = %v, want %v", tt.c, tt.want)
+			}
 		})
 	}
 }
