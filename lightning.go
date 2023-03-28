@@ -119,7 +119,11 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // Run starts the HTTP server and listens for incoming requests.
-func (app *Application) Run(addr string) (err error) {
-	app.logger.Info("app addr: %s", addr)
-	return http.ListenAndServe(addr, app)
+func (app *Application) Run(addr string) {
+	app.logger.Info("Starting application on address `%s`", addr)
+
+	err := http.ListenAndServe(addr, app)
+	if err != nil {
+		panic(err.Error())
+	}
 }
