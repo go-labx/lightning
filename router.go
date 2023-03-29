@@ -2,6 +2,7 @@
 package lightning
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -41,7 +42,7 @@ func NewRouter() *Router {
 // AddRoute adds a new route to the router.
 func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
 	if !isValidHTTPMethod(method) {
-		return
+		panic(fmt.Sprintf("method `%s` is not a standard HTTP method", method))
 	}
 	root, ok := r.roots[method]
 	if !ok {
