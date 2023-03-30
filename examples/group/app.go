@@ -7,7 +7,7 @@ import (
 
 func main() {
 	// create a new lightning application
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	app.Use(func(ctx *lightning.Context) {
 		fmt.Println("global middleware 1 --->")

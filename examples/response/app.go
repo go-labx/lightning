@@ -3,7 +3,7 @@ package main
 import "github.com/go-labx/lightning"
 
 func main() {
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	app.Get("/text", func(ctx *lightning.Context) {
 		ctx.Text("hello world")

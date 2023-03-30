@@ -3,7 +3,7 @@ package main
 import "github.com/go-labx/lightning"
 
 func main() {
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
 		ctx.JSON(map[string]string{

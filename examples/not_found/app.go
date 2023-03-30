@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	app.NotFoundHandlerFunc = func(ctx *lightning.Context) {
 		ctx.JSON(map[string]interface{}{

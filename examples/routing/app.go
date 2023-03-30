@@ -3,7 +3,7 @@ package main
 import "github.com/go-labx/lightning"
 
 func main() {
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	// Basics
 	app.Post("/api/article", func(ctx *lightning.Context) {

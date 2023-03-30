@@ -149,7 +149,7 @@ func (c *Context) JSON(obj interface{}) {
 	c.response.SetStatus(http.StatusOK)
 	err := c.response.JSON(obj)
 	if err != nil {
-		return
+		panic(err)
 	}
 }
 

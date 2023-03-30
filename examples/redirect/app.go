@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	app := lightning.App()
+	app := lightning.NewApp()
 
 	app.Get("/foo", func(ctx *lightning.Context) {
 		ctx.Redirect(http.StatusMovedPermanently, "/baz")

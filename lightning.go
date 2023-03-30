@@ -26,15 +26,17 @@ func DefaultInternalServerError(ctx *Context) {
 	ctx.response.Text(http.StatusText(http.StatusInternalServerError))
 }
 
-// App returns a new instance of the Application struct.
-func App() *Application {
-	return &Application{
+// NewApp returns a new instance of the Application struct.
+func NewApp() *Application {
+	app := &Application{
 		router:                         NewRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
 		logger:                         lightlog.NewConsoleLogger("logger", lightlog.TRACE),
 		NotFoundHandlerFunc:            DefaultNotFound,
 		InternalServerErrorHandlerFunc: DefaultInternalServerError,
 	}
+
+	return app
 }
 
 // Use adds one or more MiddlewareFuncs to the array of middlewares in the Application struct.
