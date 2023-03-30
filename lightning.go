@@ -91,7 +91,10 @@ func (app *Application) Group(prefix string) *Group {
 // It finds the matching route, creates a new Context, sets the route parameters,
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	ctx := NewContext(w, req)
+	ctx, err := NewContext(w, req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 	defer ctx.Flush()
 
 	handlers, params := app.router.FindRoute(req.Method, req.URL.Path)

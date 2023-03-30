@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"encoding/json"
 	"net/http"
 )
 
@@ -15,8 +16,11 @@ type Context struct {
 }
 
 // NewContext creates a new context object with the given HTTP response writer and request.
-func NewContext(writer http.ResponseWriter, req *http.Request) *Context {
-	request := NewRequest(req)
+func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
+	request, err := NewRequest(req)
+	if err != nil {
+		return nil, err
+	}
 	response := NewResponse(req, writer)
 	ctx := &Context{
 		request:  request,
@@ -28,7 +32,7 @@ func NewContext(writer http.ResponseWriter, req *http.Request) *Context {
 		Path:     request.path,
 	}
 
-	return ctx
+	return ctx, nil
 }
 
 func (c *Context) Next() {
@@ -41,6 +45,22 @@ func (c *Context) Next() {
 
 func (c *Context) Flush() {
 	c.response.flush()
+}
+
+func (c *Context) RawBody() []byte {
+	return c.request.RawBody
+}
+
+func (c *Context) StringBody() string {
+	return string(c.request.RawBody)
+}
+
+func (c *Context) JSONBody(v interface{}) error {
+	err := json.Unmarshal(c.request.RawBody, v)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Context) SetHandlers(handlers []HandlerFunc) {

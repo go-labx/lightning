@@ -38,24 +38,24 @@ func (r *Response) SetStatus(code int) {
 
 // JSON A method for marshaling a JSON object and setting the appropriate headers.
 func (r *Response) JSON(obj interface{}) error {
-	res, err := json.Marshal(obj)
+	encodeData, err := json.Marshal(obj)
 	if err != nil {
 		return err
 	}
 	r.res.Header().Set("Content-Type", "application/json")
 
-	r.Raw(res)
+	r.Raw(encodeData)
 	return nil
 }
 
 // XML A method for marshaling an XML object and setting the appropriate headers.
 func (r *Response) XML(obj interface{}) error {
-	res, err := xml.Marshal(obj)
+	encodeData, err := xml.Marshal(obj)
 	if err != nil {
 		return err
 	}
 	r.res.Header().Set("Content-Type", "application/xml")
-	r.Raw(res)
+	r.Raw(encodeData)
 	return nil
 }
 

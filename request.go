@@ -1,23 +1,37 @@
 package lightning
 
-import "net/http"
+import (
+	"io"
+	"net/http"
+)
 
 type Request struct {
-	req    *http.Request
-	params map[string]string
-	method string
-	path   string
+	req     *http.Request
+	params  map[string]string
+	method  string
+	path    string
+	RawBody []byte
 }
 
-func NewRequest(req *http.Request) *Request {
-	request := &Request{
-		req:    req,
-		params: map[string]string{},
-		method: req.Method,
-		path:   req.URL.Path,
+func NewRequest(req *http.Request) (*Request, error) {
+	var rawBody []byte
+	var err error
+	if req.Body != nil {
+		rawBody, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return request
+	request := &Request{
+		req:     req,
+		params:  map[string]string{},
+		method:  req.Method,
+		path:    req.URL.Path,
+		RawBody: rawBody,
+	}
+
+	return request, nil
 }
 
 func (r *Request) SetParams(params map[string]string) {
