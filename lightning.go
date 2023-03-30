@@ -16,20 +16,24 @@ type Application struct {
 	InternalServerErrorHandlerFunc HandlerFunc
 }
 
+func DefaultNotFound(ctx *Context) {
+	ctx.response.SetStatus(http.StatusNotFound)
+	ctx.response.Text(http.StatusText(http.StatusNotFound))
+}
+
+func DefaultInternalServerError(ctx *Context) {
+	ctx.response.SetStatus(http.StatusInternalServerError)
+	ctx.response.Text(http.StatusText(http.StatusInternalServerError))
+}
+
 // App returns a new instance of the Application struct.
 func App() *Application {
 	return &Application{
-		router:      NewRouter(),
-		middlewares: make([]HandlerFunc, 0),
-		logger:      lightlog.NewConsoleLogger("logger", lightlog.TRACE),
-		NotFoundHandlerFunc: func(ctx *Context) {
-			ctx.response.SetStatus(http.StatusNotFound)
-			ctx.response.Text(http.StatusText(http.StatusNotFound))
-		},
-		InternalServerErrorHandlerFunc: func(ctx *Context) {
-			ctx.response.SetStatus(http.StatusInternalServerError)
-			ctx.response.Text(http.StatusText(http.StatusInternalServerError))
-		},
+		router:                         NewRouter(),
+		middlewares:                    make([]HandlerFunc, 0),
+		logger:                         lightlog.NewConsoleLogger("logger", lightlog.TRACE),
+		NotFoundHandlerFunc:            DefaultNotFound,
+		InternalServerErrorHandlerFunc: DefaultInternalServerError,
 	}
 }
 
