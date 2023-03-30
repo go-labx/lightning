@@ -8,23 +8,47 @@ type Context struct {
 	request  *Request
 	response *Response
 	data     ContextData
+	handlers []HandlerFunc
+	index    int
 	Method   string
 	Path     string
 }
 
 // NewContext creates a new context object with the given HTTP response writer and request.
-func NewContext(writer http.ResponseWriter, req *http.Request, params map[string]string) *Context {
-	request := NewRequest(req, params)
+func NewContext(writer http.ResponseWriter, req *http.Request) *Context {
+	request := NewRequest(req)
 	response := NewResponse(req, writer)
 	ctx := &Context{
 		request:  request,
 		response: response,
 		data:     ContextData{},
+		handlers: []HandlerFunc{},
+		index:    -1,
 		Method:   request.method,
 		Path:     request.path,
 	}
 
 	return ctx
+}
+
+func (c *Context) Next() {
+	c.index++
+	if c.index < len(c.handlers) {
+		handlerFunc := c.handlers[c.index]
+		handlerFunc(c)
+	}
+}
+
+func (c *Context) Flush() {
+	c.response.flush()
+}
+
+func (c *Context) SetHandlers(handlers []HandlerFunc) {
+	c.handlers = handlers
+}
+
+func (c *Context) SetParams(params map[string]string) {
+	c.request.SetParams(params)
 }
 
 // Param returns the parameter value for a given key.

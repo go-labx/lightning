@@ -9,15 +9,19 @@ type Request struct {
 	path   string
 }
 
-func NewRequest(req *http.Request, params map[string]string) *Request {
+func NewRequest(req *http.Request) *Request {
 	request := &Request{
 		req:    req,
-		params: params,
+		params: map[string]string{},
 		method: req.Method,
 		path:   req.URL.Path,
 	}
 
 	return request
+}
+
+func (r *Request) SetParams(params map[string]string) {
+	r.params = params
 }
 
 // Param returns the parameter value for a given key.

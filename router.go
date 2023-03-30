@@ -11,7 +11,7 @@ import (
 type TrieNode struct {
 	children map[string]*TrieNode // A map of child nodes keyed by their string values
 	isEnd    bool                 // boolean flag indicating whether the node marks the end of a route
-	handler  HandlerFunc          // a `HandlerFunc` function that handles requests for the node's route
+	handlers []HandlerFunc        // `HandlerFunc` functions that handles requests for the node's route
 	params   map[string]int       // a map of parameter names and their corresponding indices in the route pattern
 	wildcard string               // a string representing the name of the wildcard parameter in the route pattern (if any)
 }
@@ -26,7 +26,7 @@ func NewTrieNode() *TrieNode {
 	return &TrieNode{
 		children: make(map[string]*TrieNode),
 		isEnd:    false,
-		handler:  nil,
+		handlers: []HandlerFunc{},
 		params:   make(map[string]int),
 		wildcard: "",
 	}
@@ -40,7 +40,7 @@ func NewRouter() *Router {
 }
 
 // AddRoute adds a new route to the router.
-func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
+func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc) {
 	if !isValidHTTPMethod(method) {
 		panic(fmt.Sprintf("method `%s` is not a standard HTTP method", method))
 	}
@@ -80,12 +80,12 @@ func (r *Router) AddRoute(method string, pattern string, handler HandlerFunc) {
 	}
 
 	root.isEnd = true
-	root.handler = handler
+	root.handlers = handlers
 	root.params = params
 }
 
 // FindRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
-func (r *Router) FindRoute(method string, pattern string) (HandlerFunc, map[string]string) {
+func (r *Router) FindRoute(method string, pattern string) ([]HandlerFunc, map[string]string) {
 	root, ok := r.roots[method]
 	if !ok {
 		return nil, nil
@@ -119,44 +119,44 @@ func (r *Router) FindRoute(method string, pattern string) (HandlerFunc, map[stri
 		params[name] = values[index]
 	}
 
-	return root.handler, params
+	return root.handlers, params
 }
 
 // HTTP Method Functions
 
 // Get adds a GET route to the router.
-func (r *Router) Get(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodGet, path, handler)
+func (r *Router) Get(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodGet, path, handlers)
 }
 
 // Post adds a POST route to the router.
-func (r *Router) Post(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodPost, path, handler)
+func (r *Router) Post(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodPost, path, handlers)
 }
 
 // Put adds a PUT route to the router.
-func (r *Router) Put(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodPut, path, handler)
+func (r *Router) Put(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodPut, path, handlers)
 }
 
 // Delete adds a DELETE route to the router.
-func (r *Router) Delete(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodDelete, path, handler)
+func (r *Router) Delete(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodDelete, path, handlers)
 }
 
 // Head adds a HEAD route to the router.
-func (r *Router) Head(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodHead, path, handler)
+func (r *Router) Head(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodHead, path, handlers)
 }
 
 // Patch adds a PATCH route to the router.
-func (r *Router) Patch(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodPatch, path, handler)
+func (r *Router) Patch(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodPatch, path, handlers)
 }
 
 // Options adds an OPTIONS route to the router.
-func (r *Router) Options(path string, handler HandlerFunc) {
-	r.AddRoute(http.MethodOptions, path, handler)
+func (r *Router) Options(path string, handlers ...HandlerFunc) {
+	r.AddRoute(http.MethodOptions, path, handlers)
 }
 
 func isValidHTTPMethod(method string) bool {
