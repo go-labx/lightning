@@ -9,9 +9,11 @@ import (
 type HandlerFunc func(*Context)
 
 type Application struct {
-	router      *Router
-	middlewares []HandlerFunc
-	logger      *lightlog.ConsoleLogger
+	router                         *Router
+	middlewares                    []HandlerFunc
+	logger                         *lightlog.ConsoleLogger
+	NotFoundHandlerFunc            HandlerFunc
+	InternalServerErrorHandlerFunc HandlerFunc
 }
 
 // App returns a new instance of the Application struct.
@@ -20,6 +22,14 @@ func App() *Application {
 		router:      NewRouter(),
 		middlewares: make([]HandlerFunc, 0),
 		logger:      lightlog.NewConsoleLogger("logger", lightlog.TRACE),
+		NotFoundHandlerFunc: func(ctx *Context) {
+			ctx.response.SetStatus(http.StatusNotFound)
+			ctx.response.Text(http.StatusText(http.StatusNotFound))
+		},
+		InternalServerErrorHandlerFunc: func(ctx *Context) {
+			ctx.response.SetStatus(http.StatusInternalServerError)
+			ctx.response.Text(http.StatusText(http.StatusInternalServerError))
+		},
 	}
 }
 
@@ -82,7 +92,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	handlers, params := app.router.FindRoute(req.Method, req.URL.Path)
 	if handlers == nil {
-		ctx.NotFound()
+		app.NotFoundHandlerFunc(ctx)
 		return
 	}
 

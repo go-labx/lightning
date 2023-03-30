@@ -154,11 +154,6 @@ func (c *Context) File(filepath string) {
 	}
 }
 
-func (c *Context) NotFound() {
-	c.response.SetStatus(http.StatusNotFound)
-	c.response.Text(http.StatusText(http.StatusNotFound))
-}
-
 func (c *Context) GetData(key string) interface{} {
 	return c.data.Get(key)
 }
