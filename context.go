@@ -139,6 +139,21 @@ func (c *Context) Text(text string) {
 	c.response.Text(text)
 }
 
+func (c *Context) XML(obj interface{}) {
+	c.response.SetStatus(http.StatusOK)
+	err := c.response.XML(obj)
+	if err != nil {
+		return
+	}
+}
+
+func (c *Context) File(filepath string) {
+	err := c.response.File(filepath)
+	if err != nil {
+		return
+	}
+}
+
 func (c *Context) NotFound() {
 	c.response.SetStatus(http.StatusNotFound)
 	c.response.Text(http.StatusText(http.StatusNotFound))
