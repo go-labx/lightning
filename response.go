@@ -70,7 +70,8 @@ func (r *Response) Raw(data []byte) {
 }
 
 // Redirect A method for setting a redirect URL.
-func (r *Response) Redirect(url string) {
+func (r *Response) Redirect(code int, url string) {
+	r.status = code
 	r.redirect = url
 }
 

@@ -165,3 +165,7 @@ func (c *Context) SetData(key string, value interface{}) {
 func (c *Context) DelData(key string) {
 	c.data.Del(key)
 }
+
+func (c *Context) Redirect(code int, url string) {
+	c.response.Redirect(code, url)
+}
