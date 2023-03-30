@@ -34,7 +34,9 @@ func TestNewRequest(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := NewRequest(tt.args.req, tt.args.params); !reflect.DeepEqual(got, tt.want) {
+			got := NewRequest(tt.args.req)
+			got.SetParams(tt.args.params)
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("NewRequest() = %v, want %v", got, tt.want)
 			}
 		})

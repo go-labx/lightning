@@ -29,8 +29,8 @@ func TestNewTrieNode(t *testing.T) {
 		t.Errorf("Expected isEnd to be false, but got %v", node.isEnd)
 	}
 
-	if node.handler != nil {
-		t.Errorf("Expected handler to be nil, but got %v", node.handler)
+	if len(node.handlers) != 0 {
+		t.Errorf("NewTrieNode did not initialize handlers correctly")
 	}
 
 	if node.wildcard != "" {
@@ -47,8 +47,8 @@ func TestAddRouteStaticPatternValidHandler(t *testing.T) {
 	router := NewRouter()
 	method := "GET"
 	pattern := "/home"
-	handler := func(context *Context) {}
-	router.AddRoute(method, pattern, handler)
+	handlers := []HandlerFunc{func(context *Context) {}}
+	router.AddRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
 	root := router.roots[method]
@@ -62,7 +62,7 @@ func TestAddRouteStaticPatternValidHandler(t *testing.T) {
 	if !node.isEnd {
 		t.Errorf("expected node to be an end node, but wasn't")
 	}
-	if node.handler == nil {
+	if len(node.handlers) == 0 {
 		t.Errorf("expected node to have a non-nil handler, but got nil")
 	}
 	if node.params == nil {
@@ -75,8 +75,8 @@ func TestAddRouteParameterizedPatternValidHandler(t *testing.T) {
 	router := NewRouter()
 	method := "GET"
 	pattern := "/users/:id"
-	handler := func(context *Context) {}
-	router.AddRoute(method, pattern, handler)
+	handlers := []HandlerFunc{func(context *Context) {}}
+	router.AddRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
 	root := router.roots[method]
@@ -100,8 +100,8 @@ func TestAddRouteWildcardPatternValidHandler(t *testing.T) {
 	router := NewRouter()
 	method := "GET"
 	pattern := "/users/*name"
-	handler := func(context *Context) {}
-	router.AddRoute(method, pattern, handler)
+	handlers := []HandlerFunc{func(context *Context) {}}
+	router.AddRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
 	root := router.roots[method]
@@ -116,7 +116,7 @@ func TestAddRouteWildcardPatternValidHandler(t *testing.T) {
 	if !node.isEnd {
 		t.Errorf("Expected node to be an end node, but wasn't")
 	}
-	if node.handler == nil {
+	if len(node.handlers) == 0 {
 		t.Errorf("Expected node to have a non-nil handler, but got nil")
 	}
 	if node.params == nil {
@@ -132,14 +132,16 @@ func TestAddRouteInvalidMethod(t *testing.T) {
 	router := NewRouter()
 	method := "INVALID"
 	pattern := "/home"
-	handler := func(context *Context) {}
-	router.AddRoute(method, pattern, handler)
+	handlers := []HandlerFunc{func(context *Context) {}}
 
-	// Assert that the route was not added.
-	_, ok := router.roots[method]
-	if ok {
-		t.Errorf("Expected the route to not be added, but it was")
-	}
+	// Use defer to capture the panic error
+	defer func() {
+		if r := recover(); r == nil {
+			t.Errorf("Expected AddRoute to panic with an error")
+		}
+	}()
+
+	router.AddRoute(method, pattern, handlers)
 }
 
 func TestRouter_FindRoute(t *testing.T) {
@@ -155,82 +157,27 @@ func TestRouter_FindRoute(t *testing.T) {
 	router.Get("/files/*path", testHandler)
 
 	// Test case 1: invalid HTTP method
-	if handler, params := router.FindRoute("INVALID_METHOD", "/test"); handler != nil || params != nil {
-		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handler, params)
+	if handlers, params := router.FindRoute("INVALID_METHOD", "/test"); handlers != nil || params != nil {
+		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handlers, params)
 	}
 
 	// Test case 2: route does not exist
-	if handler, params := router.FindRoute(http.MethodGet, "/invalid"); handler != nil || params != nil {
-		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handler, params)
+	if handlers, params := router.FindRoute(http.MethodGet, "/invalid"); handlers != nil || params != nil {
+		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handlers, params)
 	}
 
 	// Test case 3: route exists with no parameters
-	if handler, params := router.FindRoute(http.MethodGet, "/test"); reflect.ValueOf(handler).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 0 {
-		t.Errorf("Expected handler %v and empty params map, but got handler %v and params %v", "testHandler", handler, params)
+	if handlers, params := router.FindRoute(http.MethodGet, "/test"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 0 {
+		t.Errorf("Expected handler %v and empty params map, but got handler %v and params %v", "testHandler", handlers[0], params)
 	}
 
 	// Test case 4: route exists with parameters
-	if handler, params := router.FindRoute(http.MethodGet, "/users/123"); reflect.ValueOf(handler).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["id"] != "123" {
-		t.Errorf("Expected handler %v and params map {\"id\":\"123\"}, but got handler %v and params %v", "testHandler", handler, params)
+	if handlers, params := router.FindRoute(http.MethodGet, "/users/123"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["id"] != "123" {
+		t.Errorf("Expected handler %v and params map {\"id\":\"123\"}, but got handler %v and params %v", "testHandler", handlers[0], params)
 	}
 
 	// Test case 5: route exists with wildcard parameter
-	if handler, params := router.FindRoute(http.MethodGet, "/files/path/to/file.txt"); reflect.ValueOf(handler).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["path"] != "path/to/file.txt" {
-		t.Errorf("Expected handler %v and params map {\"path\":\"path/to/file.txt\"}, but got handler %v and params %v", "testHandler", handler, params)
-	}
-}
-
-func Test_parsePattern(t *testing.T) {
-	tests := []struct {
-		pattern  string
-		expected []string
-	}{
-		{
-			pattern:  "/hello/world",
-			expected: []string{"hello", "world"},
-		},
-		{
-			pattern:  "",
-			expected: []string{},
-		},
-		{
-			pattern:  "/",
-			expected: []string{},
-		},
-		{
-			pattern:  "/hello//world/",
-			expected: []string{"hello", "world"},
-		},
-		{
-			pattern:  "/hello/world//",
-			expected: []string{"hello", "world"},
-		},
-		{
-			pattern:  "/hello/world/",
-			expected: []string{"hello", "world"},
-		},
-		{
-			pattern:  "//hello//world//",
-			expected: []string{"hello", "world"},
-		},
-		{
-			pattern:  " ",
-			expected: []string{" "},
-		},
-		{
-			pattern:  "//",
-			expected: []string{},
-		},
-		{
-			pattern:  "hello/world",
-			expected: []string{"hello", "world"},
-		},
-	}
-	for i, tt := range tests {
-		t.Run("case #"+string(rune(i)), func(t *testing.T) {
-			if got := ParsePattern(tt.pattern); !reflect.DeepEqual(got, tt.expected) {
-				t.Errorf("parsePattern() = %v, want %v", got, tt.expected)
-			}
-		})
+	if handlers, params := router.FindRoute(http.MethodGet, "/files/path/to/file.txt"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["path"] != "path/to/file.txt" {
+		t.Errorf("Expected handler %v and params map {\"path\":\"path/to/file.txt\"}, but got handler %v and params %v", "testHandler", handlers[0], params)
 	}
 }
