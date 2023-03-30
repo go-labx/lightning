@@ -69,10 +69,8 @@ func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("OPTIONS", pattern, handlers)
 }
 
-func (app *Application) Group() *Group {
-	group := NewGroup()
-
-	return group
+func (app *Application) Group(prefix string) *Group {
+	return NewGroup(app, prefix)
 }
 
 // ServeHTTP is the function that handles HTTP requests.
