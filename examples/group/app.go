@@ -6,6 +6,7 @@ import (
 )
 
 func main() {
+	// create a new lightning application
 	app := lightning.App()
 
 	app.Use(func(ctx *lightning.Context) {
@@ -19,6 +20,7 @@ func main() {
 		fmt.Println("<--- global middleware 2")
 	})
 
+	// create a new group of routes for "/api"
 	parentGroup := app.Group("/api")
 
 	parentGroup.Use(func(ctx *lightning.Context) {
@@ -32,6 +34,7 @@ func main() {
 		fmt.Println("<--- parent group middleware 2")
 	})
 
+	// create a new subgroup of routes for "/api/user"
 	subGroup := parentGroup.Group("/user")
 	subGroup.Use(func(ctx *lightning.Context) {
 		fmt.Println("sub group middleware 1 --->")
@@ -39,6 +42,7 @@ func main() {
 		fmt.Println("<--- sub group middleware 1")
 	})
 
+	// define a GET route for "/api/user/info"
 	subGroup.Get("/info", func(ctx *lightning.Context) {
 		ctx.JSON(map[string]interface{}{
 			"username": "zhangsan",
