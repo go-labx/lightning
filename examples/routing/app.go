@@ -17,6 +17,9 @@ func main() {
 	app.Put("/api/article/:articleId", func(ctx *lightning.Context) {
 		// implementation
 	})
+	app.Patch("/api/article/:articleId/name", func(ctx *lightning.Context) {
+		// implementation
+	})
 	app.Delete("/api/article/:articleId", func(ctx *lightning.Context) {
 		// implementation
 	})
