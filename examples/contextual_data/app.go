@@ -5,12 +5,12 @@ import "github.com/go-labx/lightning"
 func main() {
 	app := lightning.App()
 
-	app.Use(func(ctx *lightning.Context, next lightning.Next) {
+	app.Use(func(ctx *lightning.Context) {
 		ctx.SetData("session", map[string]interface{}{
 			"userId":   123,
 			"username": "Jack",
 		})
-		next()
+		ctx.Next()
 	})
 
 	app.Get("/", func(ctx *lightning.Context) {
