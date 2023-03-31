@@ -1,12 +1,15 @@
 package main
 
-import "github.com/go-labx/lightning"
+import (
+	"github.com/go-labx/lightning"
+	"net/http"
+)
 
 func main() {
 	app := lightning.NewApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.JSON(map[string]string{
+		ctx.JSON(http.StatusOK, map[string]string{
 			"message": "pong",
 		})
 	})

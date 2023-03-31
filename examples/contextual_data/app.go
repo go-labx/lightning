@@ -1,6 +1,9 @@
 package main
 
-import "github.com/go-labx/lightning"
+import (
+	"github.com/go-labx/lightning"
+	"net/http"
+)
 
 func main() {
 	app := lightning.NewApp()
@@ -16,7 +19,7 @@ func main() {
 	app.Get("/", func(ctx *lightning.Context) {
 		session := ctx.GetData("session")
 
-		ctx.JSON(session)
+		ctx.JSON(http.StatusOK, session)
 	})
 
 	app.Run()

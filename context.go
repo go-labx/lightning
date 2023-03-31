@@ -145,8 +145,8 @@ func (c *Context) SetCustomCookie(cookie *http.Cookie) {
 }
 
 // JSON writes a JSON response with the given status code and object.
-func (c *Context) JSON(obj interface{}) {
-	c.response.SetStatus(http.StatusOK)
+func (c *Context) JSON(code int, obj interface{}) {
+	c.response.SetStatus(code)
 	err := c.response.JSON(obj)
 	if err != nil {
 		panic(err)
@@ -154,13 +154,13 @@ func (c *Context) JSON(obj interface{}) {
 }
 
 // Text writes a plain text response with the given status code and format.
-func (c *Context) Text(text string) {
-	c.response.SetStatus(http.StatusOK)
+func (c *Context) Text(code int, text string) {
+	c.response.SetStatus(code)
 	c.response.Text(text)
 }
 
-func (c *Context) XML(obj interface{}) {
-	c.response.SetStatus(http.StatusOK)
+func (c *Context) XML(code int, obj interface{}) {
+	c.response.SetStatus(code)
 	err := c.response.XML(obj)
 	if err != nil {
 		return

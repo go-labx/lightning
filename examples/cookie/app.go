@@ -28,7 +28,7 @@ func main() {
 			Path:  "/",
 		})
 
-		ctx.JSON(map[string]string{
+		ctx.JSON(http.StatusOK, map[string]string{
 			"message": "pong",
 		})
 	})

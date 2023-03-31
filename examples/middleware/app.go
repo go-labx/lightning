@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/go-labx/lightning"
+	"net/http"
 )
 
 func main() {
@@ -28,7 +29,7 @@ func main() {
 
 	// Defining a GET route for the root path of the application
 	app.Get("/", func(ctx *lightning.Context) {
-		ctx.JSON(map[string]string{
+		ctx.JSON(http.StatusOK, map[string]string{
 			"message": "hello world",
 		})
 	})
@@ -39,7 +40,7 @@ func main() {
 		ctx.Next()
 		fmt.Println("<--- route scope middleware")
 	}, func(ctx *lightning.Context) {
-		ctx.Text("pong")
+		ctx.Text(http.StatusOK, "pong")
 	})
 
 	app.Run()

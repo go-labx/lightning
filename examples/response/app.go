@@ -1,16 +1,19 @@
 package main
 
-import "github.com/go-labx/lightning"
+import (
+	"github.com/go-labx/lightning"
+	"net/http"
+)
 
 func main() {
 	app := lightning.NewApp()
 
 	app.Get("/text", func(ctx *lightning.Context) {
-		ctx.Text("hello world")
+		ctx.Text(http.StatusOK, "hello world")
 	})
 
 	app.Get("/json", func(ctx *lightning.Context) {
-		ctx.JSON(map[string]string{
+		ctx.JSON(http.StatusOK, map[string]string{
 			"message": "pong",
 		})
 	})
@@ -20,7 +23,7 @@ func main() {
 			name string
 			age  int
 		}
-		ctx.XML(Person{
+		ctx.XML(http.StatusOK, Person{
 			name: "zhangsan",
 			age:  20,
 		})
