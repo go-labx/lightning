@@ -85,7 +85,6 @@ func (c *Context) Param(key string) string {
 }
 
 // Params returns all URL parameters for the request.
-func (c *Context// Params returns all URL parameters for the request.
 func (c *Context) Params() map[string]string {
 	return c.request.Params()
 }
@@ -205,4 +204,16 @@ func (c *Context) DelData(key string) {
 // Redirect redirects the request to a new URL with the given status code.
 func (c *Context) Redirect(code int, url string) {
 	c.response.Redirect(code, url)
+}
+
+func (c *Context) UserAgent() string {
+	return c.request.UserAgent()
+}
+
+func (c *Context) Referer() string {
+	return c.request.Referer()
+}
+
+func (c *Context) RemoteAddr() string {
+	return c.request.RemoteAddr()
 }

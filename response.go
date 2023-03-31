@@ -131,4 +131,3 @@ func (r *Response) flush() {
 		}
 	}
 }
-}

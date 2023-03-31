@@ -83,3 +83,22 @@ func (r *Request) Cookie(name string) *http.Cookie {
 func (r *Request) Cookies() []*http.Cookie {
 	return r.req.Cookies()
 }
+
+func (r *Request) UserAgent() string {
+	return r.Header("user-agent")
+}
+
+func (r *Request) Referer() string {
+	return r.Header("referer")
+}
+
+func (r *Request) RemoteAddr() string {
+	ip := r.Header("x-real-ip")
+	if ip == "" {
+		ip = r.Header("x-forwarded-for")
+		if ip == "" {
+			ip = r.req.RemoteAddr
+		}
+	}
+	return ip
+}
