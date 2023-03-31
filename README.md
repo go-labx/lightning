@@ -1,5 +1,3 @@
-# lightning
-
 ## Introduction
 
 lightning is a lightweight and fast web framework for Go. It is designed to be easy to use and highly performant.
