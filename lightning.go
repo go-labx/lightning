@@ -39,6 +39,14 @@ func NewApp() *Application {
 	return app
 }
 
+func DefaultApp() *Application {
+	app := NewApp()
+	app.Use(Logger())
+	app.Use(Recovery())
+
+	return app
+}
+
 // Use adds one or more MiddlewareFuncs to the array of middlewares in the Application struct.
 func (app *Application) Use(middlewares ...HandlerFunc) {
 	app.middlewares = append(app.middlewares, middlewares...)

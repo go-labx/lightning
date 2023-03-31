@@ -3,10 +3,11 @@ package main
 import (
 	"fmt"
 	"github.com/go-labx/lightning"
+	"net/http"
 )
 
 func main() {
-	app := lightning.App()
+	app := lightning.DefaultApp()
 
 	app.Post("/ping", func(ctx *lightning.Context) {
 		rawBody := ctx.RawBody()
@@ -24,7 +25,7 @@ func main() {
 			return
 		}
 
-		ctx.JSON(map[string]interface{}{
+		ctx.JSON(http.StatusOK, map[string]interface{}{
 			"rawBody":    rawBody,
 			"stringBody": stringBody,
 			"jsonBody":   p,
