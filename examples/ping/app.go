@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp()
+	app := lightning.DefaultApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
 		ctx.JSON(http.StatusOK, map[string]string{
