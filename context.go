@@ -217,3 +217,18 @@ func (c *Context) Referer() string {
 func (c *Context) RemoteAddr() string {
 	return c.request.RemoteAddr()
 }
+
+func (c *Context) Success(data interface{}) {
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"code": 0,
+		"msg":  "ok",
+		"data": data,
+	})
+}
+
+func (c *Context) Fail(code int, msg string) {
+	c.JSON(http.StatusOK, map[string]interface{}{
+		"code": code,
+		"msg":  msg,
+	})
+}

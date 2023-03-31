@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-labx/lightning"
 	"net/http"
 )
@@ -21,7 +20,7 @@ func main() {
 		p := &Person{}
 		err := ctx.JSONBody(p)
 		if err != nil {
-			fmt.Println(err)
+			ctx.Fail(-1, "参数错误")
 			return
 		}
 
