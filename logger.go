@@ -5,6 +5,7 @@ import (
 	"time"
 )
 
+// Logger returns a middleware function that logs incoming requests
 func Logger() func(ctx *Context) {
 	logger := lightlog.NewConsoleLogger("accessLogger", lightlog.TRACE)
 

@@ -79,9 +79,9 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 		}
 	}
 
-	root.isEnd = true
-	root.handlers = handlers
-	root.params = params
+	root.isEnd = true // mark the end of the route
+	root.handlers = handlers // set the handlers for the route
+	root.params = params // set the parameters for the route
 }
 
 // FindRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
@@ -159,6 +159,7 @@ func (r *Router) Options(path string, handlers ...HandlerFunc) {
 	r.AddRoute(http.MethodOptions, path, handlers)
 }
 
+// isValidHTTPMethod checks if a given HTTP method is valid.
 func isValidHTTPMethod(method string) bool {
 	switch method {
 	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":

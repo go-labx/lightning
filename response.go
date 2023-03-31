@@ -32,11 +32,12 @@ func NewResponse(req *http.Request, res http.ResponseWriter) *Response {
 	return response
 }
 
+// SetStatus sets the status code of the HTTP response.
 func (r *Response) SetStatus(code int) {
 	r.status = code
 }
 
-// JSON A method for marshaling a JSON object and setting the appropriate headers.
+// JSON marshals a JSON object and sets the appropriate headers.
 func (r *Response) JSON(obj interface{}) error {
 	encodeData, err := json.Marshal(obj)
 	if err != nil {
@@ -48,7 +49,7 @@ func (r *Response) JSON(obj interface{}) error {
 	return nil
 }
 
-// XML A method for marshaling an XML object and setting the appropriate headers.
+// XML marshals an XML object and sets the appropriate headers.
 func (r *Response) XML(obj interface{}) error {
 	encodeData, err := xml.Marshal(obj)
 	if err != nil {
@@ -59,23 +60,23 @@ func (r *Response) XML(obj interface{}) error {
 	return nil
 }
 
-// Text A method for setting plain text as the response data.
+// Text sets plain text as the response data.
 func (r *Response) Text(text string) {
 	r.Raw([]byte(text))
 }
 
-// Raw A method for setting the response data directly.
+// Raw sets the response data directly.
 func (r *Response) Raw(data []byte) {
 	r.data = data
 }
 
-// Redirect A method for setting a redirect URL.
+// Redirect sets a redirect URL.
 func (r *Response) Redirect(code int, url string) {
 	r.status = code
 	r.redirect = url
 }
 
-// File A method for serving a file.
+// File serves a file.
 func (r *Response) File(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -105,13 +106,14 @@ func (r *Response) DelHeader(key string) {
 	r.res.Header().Del(key)
 }
 
+// sendFile sends the file as an attachment.
 func (r *Response) sendFile() {
 	base := filepath.Base(r.file)
 	r.res.Header().Set("Content-Disposition", "attachment; filename="+base)
 	http.ServeFile(r.res, r.req, r.file)
 }
 
-// A method for sending the HTTP response.
+// flush sends the HTTP response.
 func (r *Response) flush() {
 	for _, v := range r.Cookies {
 		http.SetCookie(r.res, v)
@@ -128,4 +130,5 @@ func (r *Response) flush() {
 			return
 		}
 	}
+}
 }

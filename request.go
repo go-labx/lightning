@@ -13,6 +13,7 @@ type Request struct {
 	RawBody []byte
 }
 
+// NewRequest creates a new Request object from an http.Request object
 func NewRequest(req *http.Request) (*Request, error) {
 	var rawBody []byte
 	var err error
@@ -34,6 +35,7 @@ func NewRequest(req *http.Request) (*Request, error) {
 	return request, nil
 }
 
+// SetParams sets the parameters for the Request object
 func (r *Request) SetParams(params map[string]string) {
 	r.params = params
 }
@@ -53,6 +55,7 @@ func (r *Request) Query(key string) string {
 	return r.req.URL.Query().Get(key)
 }
 
+// Queries returns the entire query parameter map for the context.
 func (r *Request) Queries() map[string][]string {
 	return r.req.URL.Query()
 }

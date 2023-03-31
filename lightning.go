@@ -12,18 +12,18 @@ type Application struct {
 	router                         *Router
 	middlewares                    []HandlerFunc
 	logger                         *lightlog.ConsoleLogger
-	NotFoundHandlerFunc            HandlerFunc
-	InternalServerErrorHandlerFunc HandlerFunc
+	NotFoundHandlerFunc            HandlerFunc // Handler function for 404 Not Found error
+	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
 }
 
+// DefaultNotFound is the default handler function for 404 Not Found error
 func DefaultNotFound(ctx *Context) {
-	ctx.response.SetStatus(http.StatusNotFound)
-	ctx.response.Text(http.StatusText(http.StatusNotFound))
+	ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
 }
 
+// DefaultInternalServerError is the default handler function for 500 Internal Server Error
 func DefaultInternalServerError(ctx *Context) {
-	ctx.response.SetStatus(http.StatusInternalServerError)
-	ctx.response.Text(http.StatusText(http.StatusInternalServerError))
+	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 }
 
 // NewApp returns a new instance of the Application struct.
@@ -39,6 +39,7 @@ func NewApp() *Application {
 	return app
 }
 
+// DefaultApp returns a new instance of the Application struct with default middlewares
 func DefaultApp() *Application {
 	app := NewApp()
 	app.Use(Logger())
@@ -65,34 +66,42 @@ func (app *Application) AddRoute(method string, pattern string, handlers []Handl
 // The following functions are shortcuts for the AddRoute function.
 // They pre-fill the method parameter and call the AddRoute function.
 
+// Get adds a new route with method "GET" to the Router.
 func (app *Application) Get(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("GET", pattern, handlers)
 }
 
+// Post adds a new route with method "POST" to the Router.
 func (app *Application) Post(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("POST", pattern, handlers)
 }
 
+// Put adds a new route with method "PUT" to the Router.
 func (app *Application) Put(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PUT", pattern, handlers)
 }
 
+// Delete adds a new route with method "DELETE" to the Router.
 func (app *Application) Delete(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("DELETE", pattern, handlers)
 }
 
+// Head adds a new route with method "HEAD" to the Router.
 func (app *Application) Head(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("HEAD", pattern, handlers)
 }
 
+// Patch adds a new route with method "PATCH" to the Router.
 func (app *Application) Patch(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PATCH", pattern, handlers)
 }
 
+// Options adds a new route with method "OPTIONS" to the Router.
 func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("OPTIONS", pattern, handlers)
 }
 
+// Group returns a new instance of the Group struct with the given prefix.
 func (app *Application) Group(prefix string) *Group {
 	return NewGroup(app, prefix)
 }
