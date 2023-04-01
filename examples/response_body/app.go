@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp()
+	app := lightning.DefaultApp()
 
 	app.Get("/text", func(ctx *lightning.Context) {
 		ctx.Text(http.StatusOK, "hello world")

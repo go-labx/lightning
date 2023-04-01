@@ -51,7 +51,7 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 	}
 
 	params := make(map[string]int)
-	parts := ParsePattern(pattern)
+	parts := parsePattern(pattern)
 	for i, part := range parts {
 		if part[0] == ':' {
 			// parameter
@@ -79,9 +79,9 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 		}
 	}
 
-	root.isEnd = true // mark the end of the route
+	root.isEnd = true        // mark the end of the route
 	root.handlers = handlers // set the handlers for the route
-	root.params = params // set the parameters for the route
+	root.params = params     // set the parameters for the route
 }
 
 // FindRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
@@ -93,7 +93,7 @@ func (r *Router) FindRoute(method string, pattern string) ([]HandlerFunc, map[st
 	params := make(map[string]string)
 	values := make(map[int]string)
 
-	parts := ParsePattern(pattern)
+	parts := parsePattern(pattern)
 	for i, part := range parts {
 		if root.children[part] != nil {
 			root = root.children[part]

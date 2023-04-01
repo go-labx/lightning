@@ -1,12 +1,13 @@
 package lightning
 
 import (
+	"net/http"
 	"os"
 	"strings"
 )
 
-// ParsePattern splits a route pattern string into its individual parts.
-func ParsePattern(pattern string) []string {
+// parsePattern splits a route pattern string into its individual parts.
+func parsePattern(pattern string) []string {
 	parts := strings.Split(pattern, "/")
 	result := make([]string, 0)
 	for _, part := range parts {
@@ -17,9 +18,6 @@ func ParsePattern(pattern string) []string {
 
 	return result
 }
-
-// Map is a shortcut for map[string]interface{}
-type Map map[string]any
 
 func resolveAddress(addr []string) string {
 	if port := os.Getenv("PORT"); port != "" {
@@ -36,4 +34,14 @@ func resolveAddress(addr []string) string {
 	default:
 		panic("too many parameters")
 	}
+}
+
+// defaultNotFound is the default handler function for 404 Not Found error
+func defaultNotFound(ctx *Context) {
+	ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+}
+
+// defaultInternalServerError is the default handler function for 500 Internal Server Error
+func defaultInternalServerError(ctx *Context) {
+	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 }

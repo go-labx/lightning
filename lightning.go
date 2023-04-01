@@ -8,22 +8,16 @@ import (
 // HandlerFunc is a function type that represents the actual handler function for a route.
 type HandlerFunc func(*Context)
 
+// Map is a shortcut for map[string]interface{}
+type Map map[string]any
+
 type Application struct {
-	router                         *Router
-	middlewares                    []HandlerFunc
-	logger                         *lightlog.ConsoleLogger
+	router      *Router
+	middlewares []HandlerFunc
+
+	Logger                         *lightlog.ConsoleLogger
 	NotFoundHandlerFunc            HandlerFunc // Handler function for 404 Not Found error
 	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
-}
-
-// DefaultNotFound is the default handler function for 404 Not Found error
-func DefaultNotFound(ctx *Context) {
-	ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-}
-
-// DefaultInternalServerError is the default handler function for 500 Internal Server Error
-func DefaultInternalServerError(ctx *Context) {
-	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 }
 
 var logger *lightlog.ConsoleLogger
@@ -35,9 +29,9 @@ func NewApp() *Application {
 	app := &Application{
 		router:                         NewRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
-		logger:                         logger,
-		NotFoundHandlerFunc:            DefaultNotFound,
-		InternalServerErrorHandlerFunc: DefaultInternalServerError,
+		Logger:                         logger,
+		NotFoundHandlerFunc:            defaultNotFound,
+		InternalServerErrorHandlerFunc: defaultInternalServerError,
 	}
 
 	return app
@@ -61,7 +55,7 @@ func (app *Application) Use(middlewares ...HandlerFunc) {
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
 // to form a single MiddlewareFunc, and then adds it to the Router.
 func (app *Application) AddRoute(method string, pattern string, handlers []HandlerFunc) {
-	app.logger.Trace("register route %s\t-> %s", method, pattern)
+	app.Logger.Debug("register route %s\t-> %s", method, pattern)
 	allHandlers := append(app.middlewares, handlers...)
 
 	app.router.AddRoute(method, pattern, allHandlers)
@@ -140,7 +134,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 // Run starts the HTTP server and listens for incoming requests.
 func (app *Application) Run(address ...string) {
 	addr := resolveAddress(address)
-	app.logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
+	app.Logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
 
 	err := http.ListenAndServe(addr, app)
 	if err != nil {
