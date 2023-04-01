@@ -20,12 +20,10 @@ type Application struct {
 	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
 }
 
-var logger *lightlog.ConsoleLogger
+var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
 // NewApp returns a new instance of the Application struct.
 func NewApp() *Application {
-	logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
-
 	app := &Application{
 		router:                         NewRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
