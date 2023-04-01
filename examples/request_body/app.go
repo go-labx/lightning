@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/go-labx/lightning"
-	"net/http"
 )
 
 func main() {
@@ -24,7 +23,7 @@ func main() {
 			return
 		}
 
-		ctx.JSON(http.StatusOK, map[string]interface{}{
+		ctx.Success(lightning.Map{
 			"rawBody":    rawBody,
 			"stringBody": stringBody,
 			"jsonBody":   p,

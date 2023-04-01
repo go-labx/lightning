@@ -16,3 +16,6 @@ func ParsePattern(pattern string) []string {
 
 	return result
 }
+
+// Map is a shortcut for map[string]interface{}
+type Map map[string]any
