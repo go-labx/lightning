@@ -110,20 +110,26 @@ func (app *Application) Group(prefix string) *Group {
 // It finds the matching route, creates a new Context, sets the route parameters,
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// Create a new context
 	ctx, err := NewContext(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	defer ctx.Flush()
 
+	// Find the matching route and set the handlers and params in the context
 	handlers, params := app.router.FindRoute(req.Method, req.URL.Path)
+	// This check is necessary because if no matching route is found and the handlers slice is left empty,
+	// the middleware chain will not be executed and the client will receive an empty response.
+	// By appending the 404 handler function to the handlers slice,
+	// we ensure that the middleware chain will always be executed, even if no matching route is found.
 	if handlers == nil {
-		app.NotFoundHandlerFunc(ctx)
-		return
+		handlers = append(app.middlewares, app.NotFoundHandlerFunc)
 	}
-
 	ctx.SetHandlers(handlers)
 	ctx.SetParams(params)
+
+	// Execute the middleware chain
 	ctx.Next()
 }
 
