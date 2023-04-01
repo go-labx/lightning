@@ -131,7 +131,7 @@ func TestRequest_Cookies(t *testing.T) {
 				path:   tt.fields.path,
 			}
 			if got := r.Cookies(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Cookies() = %v, want %v", got, tt.want)
+				t.Errorf("cookies() = %v, want %v", got, tt.want)
 			}
 		})
 	}

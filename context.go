@@ -8,7 +8,7 @@ import (
 // Context represents the context of an HTTP request/response.
 type Context struct {
 	request  *Request
-	response *Response
+	response *response
 	data     ContextData
 	handlers []HandlerFunc
 	index    int
@@ -22,7 +22,7 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	if err != nil {
 		return nil, err
 	}
-	response := NewResponse(req, writer)
+	response := newResponse(req, writer)
 	ctx := &Context{
 		request:  request,
 		response: response,
@@ -106,7 +106,7 @@ func (c *Context) Status() int {
 
 // SetStatus sets the HTTP status code for the response.
 func (c *Context) SetStatus(code int) {
-	c.response.SetStatus(code)
+	c.response.setStatus(code)
 }
 
 // Header returns the value of a given header.
@@ -121,17 +121,17 @@ func (c *Context) Headers() http.Header {
 
 // AddHeader adds a new header key-value pair to the response.
 func (c *Context) AddHeader(key, value string) {
-	c.response.AddHeader(key, value)
+	c.response.addHeader(key, value)
 }
 
 // SetHeader sets the value of a given header in the response.
 func (c *Context) SetHeader(key string, value string) {
-	c.response.SetHeader(key, value)
+	c.response.setHeader(key, value)
 }
 
 // DelHeader deletes a given header from the response.
 func (c *Context) DelHeader(key string) {
-	c.response.DelHeader(key)
+	c.response.delHeader(key)
 }
 
 // Cookie returns the cookie with the given name.
@@ -146,18 +146,18 @@ func (c *Context) Cookies() []*http.Cookie {
 
 // SetCookie sets a new cookie with the given key-value pair.
 func (c *Context) SetCookie(key string, value string) {
-	c.response.Cookies.Set(key, value)
+	c.response.cookies.Set(key, value)
 }
 
 // SetCustomCookie sets a custom cookie in the response.
 func (c *Context) SetCustomCookie(cookie *http.Cookie) {
-	c.response.Cookies.SetCustom(cookie)
+	c.response.cookies.SetCustom(cookie)
 }
 
 // JSON writes a JSON response with the given status code and object.
 func (c *Context) JSON(code int, obj interface{}) {
-	c.response.SetStatus(code)
-	err := c.response.JSON(obj)
+	c.response.setStatus(code)
+	err := c.response.json(obj)
 	if err != nil {
 		panic(err)
 	}
@@ -165,14 +165,14 @@ func (c *Context) JSON(code int, obj interface{}) {
 
 // Text writes a plain text response with the given status code and format.
 func (c *Context) Text(code int, text string) {
-	c.response.SetStatus(code)
-	c.response.Text(text)
+	c.response.setStatus(code)
+	c.response.text(text)
 }
 
 // XML writes an XML response with the given status code and object.
 func (c *Context) XML(code int, obj interface{}) {
-	c.response.SetStatus(code)
-	err := c.response.XML(obj)
+	c.response.setStatus(code)
+	err := c.response.xml(obj)
 	if err != nil {
 		return
 	}
@@ -180,7 +180,7 @@ func (c *Context) XML(code int, obj interface{}) {
 
 // File writes a file as the response.
 func (c *Context) File(filepath string) {
-	err := c.response.File(filepath)
+	err := c.response.file(filepath)
 	if err != nil {
 		return
 	}
@@ -203,7 +203,7 @@ func (c *Context) DelData(key string) {
 
 // Redirect redirects the request to a new URL with the given status code.
 func (c *Context) Redirect(code int, url string) {
-	c.response.Redirect(code, url)
+	c.response.redirect(code, url)
 }
 
 func (c *Context) UserAgent() string {
