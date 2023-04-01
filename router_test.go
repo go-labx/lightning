@@ -150,11 +150,13 @@ func TestRouter_FindRoute(t *testing.T) {
 
 	// Define the handler function for the test cases
 	testHandler := func(ctx *Context) {}
+	handlers := make([]HandlerFunc, 0)
+	handlers = append(handlers, testHandler)
 
 	// Add routes for test cases 3, 4, and 5
-	router.Get("/test", testHandler)
-	router.Get("/users/:id", testHandler)
-	router.Get("/files/*path", testHandler)
+	router.AddRoute(http.MethodGet, "/test", handlers)
+	router.AddRoute(http.MethodGet, "/users/:id", handlers)
+	router.AddRoute(http.MethodGet, "/files/*path", handlers)
 
 	// Test case 1: invalid HTTP method
 	if handlers, params := router.FindRoute("INVALID_METHOD", "/test"); handlers != nil || params != nil {

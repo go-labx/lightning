@@ -3,7 +3,6 @@ package lightning
 
 import (
 	"fmt"
-	"net/http"
 	"strings"
 )
 
@@ -120,41 +119,4 @@ func (r *Router) FindRoute(method string, pattern string) ([]HandlerFunc, map[st
 	}
 
 	return root.handlers, params
-}
-
-// HTTP Method Functions
-
-// Get adds a GET route to the router.
-func (r *Router) Get(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodGet, path, handlers)
-}
-
-// Post adds a POST route to the router.
-func (r *Router) Post(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodPost, path, handlers)
-}
-
-// Put adds a PUT route to the router.
-func (r *Router) Put(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodPut, path, handlers)
-}
-
-// Delete adds a DELETE route to the router.
-func (r *Router) Delete(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodDelete, path, handlers)
-}
-
-// Head adds a HEAD route to the router.
-func (r *Router) Head(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodHead, path, handlers)
-}
-
-// Patch adds a PATCH route to the router.
-func (r *Router) Patch(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodPatch, path, handlers)
-}
-
-// Options adds an OPTIONS route to the router.
-func (r *Router) Options(path string, handlers ...HandlerFunc) {
-	r.AddRoute(http.MethodOptions, path, handlers)
 }
