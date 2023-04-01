@@ -47,7 +47,8 @@ For more information on how to use lightning, check out the [documentation](http
 
 ## Contributing
 
-If you'd like to contribute to lightning, please see [CONTRIBUTING.md](https://github.com/go-labx/lightning/blob/master/CONTRIBUTING.md) for guidelines.
+If you'd like to contribute to lightning, please
+see [CONTRIBUTING.md](https://github.com/go-labx/lightning/blob/master/CONTRIBUTING.md) for guidelines.
 
 ## License
 

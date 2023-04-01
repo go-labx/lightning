@@ -4,7 +4,9 @@ Thank you for your interest in contributing to `lightning`! Here are some guidel
 
 ## Reporting Issues
 
-If you encounter any issues or bugs with lightning, please [submit an issue](https://github.com/go-labx/lighning/issues/new) on GitHub. When submitting an issue, please include the following information:
+If you encounter any issues or bugs with lightning,
+please [submit an issue](https://github.com/go-labx/lighning/issues/new) on GitHub. When submitting an issue, please
+include the following information:
 
 - A brief summary of the issue
 - Steps to reproduce the issue
@@ -23,5 +25,6 @@ If you would like to contribute code to this web framework, please follow these 
 5. Push your changes to your fork on GitHub
 6. Submit a pull request to the main repository
 
-Please make sure that your code follows the [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments) and that your changes include tests.
+Please make sure that your code follows
+the [Go Code Review Comments](https://github.com/golang/go/wiki/CodeReviewComments) and that your changes include tests.
 
