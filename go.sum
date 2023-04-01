@@ -1,0 +1,4 @@
+github.com/go-labx/color v0.0.1 h1:eOgeahCoZ6myc34+ZDAiJUYMvwGuQl52CzSMO3HHLpc=
+github.com/go-labx/color v0.0.1/go.mod h1:pybhhAum+DQj4h2H9NftbeDfqu1eda6damNXS/i6p6k=
+github.com/go-labx/lightlog v0.0.3 h1:Ms8ln1U9n45AhRkIPT7bTeAIIybcq96fAbBNNS/0Z1U=
+github.com/go-labx/lightlog v0.0.3/go.mod h1:ZOhRh8g5iG+9s43xnbtir1wb/uObXTB532K3HFmWrIA=
