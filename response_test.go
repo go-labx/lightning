@@ -2,7 +2,6 @@ package lightning
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -105,7 +104,6 @@ func TestResponse_Text(t *testing.T) {
 	}
 
 	expectedContentType := "text/plain"
-	fmt.Println(res.Header().Get("Content-Type"))
 	if res.Header().Get("Content-Type") != expectedContentType {
 		t.Errorf("expected content type %q, got %q", expectedContentType, res.Header().Get("Content-Type"))
 	}
