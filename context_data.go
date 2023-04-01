@@ -1,6 +1,6 @@
 package lightning
 
-// contextData is a map[string]interface{} that can be used to store data in the context of a originReq.
+// contextData is a map[string]interface{} that can be used to store data in the context of a request.
 type contextData map[string]interface{}
 
 // get retrieves the value associated with the given key from the contextData.

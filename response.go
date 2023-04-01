@@ -10,9 +10,9 @@ import (
 
 // response Declaring the response structure that will be used to hold HTTP response data.
 type response struct {
-	req         *http.Request       // A pointer to an HTTP request.
-	res         http.ResponseWriter // An HTTP response writer.
-	status      int                 // The status code of the HTTP response (e.g. 200, 404, 500, etc.).
+	originReq   *http.Request       // A pointer to an HTTP request.
+	originRes   http.ResponseWriter // An HTTP response writer.
+	statusCode  int                 // The status code of the HTTP response (e.g. 200, 404, 500, etc.).
 	cookies     cookiesMap          // An array of cookies to be sent with the HTTP response.
 	data        []byte              // The response data to be sent.
 	redirectUrl string              // The URL to redirect to.
@@ -22,9 +22,9 @@ type response struct {
 // newResponse A constructor function for the response structure.
 func newResponse(req *http.Request, res http.ResponseWriter) *response {
 	return &response{
-		req:         req,
-		res:         res,
-		status:      http.StatusNotFound,
+		originReq:   req,
+		originRes:   res,
+		statusCode:  http.StatusNotFound,
 		cookies:     cookiesMap{},
 		data:        nil,
 		redirectUrl: "",
@@ -33,7 +33,7 @@ func newResponse(req *http.Request, res http.ResponseWriter) *response {
 
 // setStatus sets the status code of the HTTP response.
 func (r *response) setStatus(code int) {
-	r.status = code
+	r.statusCode = code
 }
 
 // json marshals a json object and sets the appropriate headers.
@@ -42,7 +42,7 @@ func (r *response) json(obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	r.res.Header().Set("Content-Type", "application/json")
+	r.originRes.Header().Set("Content-Type", "application/json")
 
 	r.raw(encodeData)
 	return nil
@@ -54,7 +54,7 @@ func (r *response) xml(obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	r.res.Header().Set("Content-Type", "application/xml")
+	r.originRes.Header().Set("Content-Type", "application/xml")
 	r.raw(encodeData)
 	return nil
 }
@@ -71,7 +71,7 @@ func (r *response) raw(data []byte) {
 
 // redirect sets a redirect URL.
 func (r *response) redirect(code int, url string) {
-	r.status = code
+	r.statusCode = code
 	r.redirectUrl = url
 }
 
@@ -92,39 +92,39 @@ func (r *response) file(path string) error {
 
 // addHeader adds a new header key-value pair to the response.
 func (r *response) addHeader(key, value string) {
-	r.res.Header().Add(key, value)
+	r.originRes.Header().Add(key, value)
 }
 
 // setHeader sets the value of a given header in the response.
 func (r *response) setHeader(key string, value string) {
-	r.res.Header().Set(key, value)
+	r.originRes.Header().Set(key, value)
 }
 
 // delHeader deletes a given header from the response.
 func (r *response) delHeader(key string) {
-	r.res.Header().Del(key)
+	r.originRes.Header().Del(key)
 }
 
 // sendFile sends the file as an attachment.
 func (r *response) sendFile() {
 	base := filepath.Base(r.fileUrl)
-	r.res.Header().Set("Content-Disposition", "attachment; filename="+base)
-	http.ServeFile(r.res, r.req, r.fileUrl)
+	r.originRes.Header().Set("Content-Disposition", "attachment; filename="+base)
+	http.ServeFile(r.originRes, r.originReq, r.fileUrl)
 }
 
 // flush sends the HTTP response.
 func (r *response) flush() {
 	for _, v := range r.cookies {
-		http.SetCookie(r.res, v)
+		http.SetCookie(r.originRes, v)
 	}
 
 	if len(r.fileUrl) > 0 {
 		r.sendFile()
 	} else if len(r.redirectUrl) > 0 {
-		http.Redirect(r.res, r.req, r.redirectUrl, r.status)
+		http.Redirect(r.originRes, r.originReq, r.redirectUrl, r.statusCode)
 	} else {
-		r.res.WriteHeader(r.status)
-		_, err := r.res.Write(r.data)
+		r.originRes.WriteHeader(r.statusCode)
+		_, err := r.originRes.Write(r.data)
 		if err != nil {
 			return
 		}

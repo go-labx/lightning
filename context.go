@@ -16,7 +16,7 @@ type Context struct {
 	Path     string // URL path of the originReq
 }
 
-// newContext creates a new context object with the given HTTP response writer and originReq.
+// newContext creates a new context object with the given HTTP response writer and req.
 func newContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
 	request, err := newRequest(req)
 	if err != nil {
@@ -50,17 +50,17 @@ func (c *Context) flushResponse() {
 	c.res.flush()
 }
 
-// RawBody returns the raw originReq body.
+// RawBody returns the raw origin request body.
 func (c *Context) RawBody() []byte {
 	return c.req.rawBody
 }
 
-// StringBody returns the originReq body as a string.
+// StringBody returns the origin request body as a string.
 func (c *Context) StringBody() string {
 	return string(c.req.rawBody)
 }
 
-// JSONBody parses the originReq body as JSON and stores the result in v.
+// JSONBody parses the origin request body as JSON and stores the result in v.
 func (c *Context) JSONBody(v interface{}) error {
 	err := json.Unmarshal(c.req.rawBody, v)
 	if err != nil {
@@ -69,12 +69,12 @@ func (c *Context) JSONBody(v interface{}) error {
 	return nil
 }
 
-// setHandlers sets the middleware handlers for the context.
+// setHandlers sets the handlers for the context.
 func (c *Context) setHandlers(handlers []HandlerFunc) {
 	c.handlers = handlers
 }
 
-// setParams sets the URL parameters for the originReq.
+// setParams sets the URL parameters for the req.
 func (c *Context) setParams(params map[string]string) {
 	c.req.setParams(params)
 }
@@ -84,7 +84,7 @@ func (c *Context) Param(key string) string {
 	return c.req.param(key)
 }
 
-// Params returns all URL parameters for the originReq.
+// Params returns all URL parameters for the req.
 func (c *Context) Params() map[string]string {
 	return c.req.params()
 }
@@ -94,14 +94,14 @@ func (c *Context) Query(key string) string {
 	return c.req.query(key)
 }
 
-// Queries returns all query parameters for the originReq.
+// Queries returns all query parameters for the req.
 func (c *Context) Queries() map[string][]string {
 	return c.req.queries()
 }
 
 // Status returns the HTTP status code of the response.
 func (c *Context) Status() int {
-	return c.res.status
+	return c.res.statusCode
 }
 
 // SetStatus sets the HTTP status code for the response.
@@ -114,7 +114,7 @@ func (c *Context) Header(key string) string {
 	return c.req.header(key)
 }
 
-// Headers returns all headers for the originReq.
+// Headers returns all headers for the req.
 func (c *Context) Headers() http.Header {
 	return c.req.headers()
 }
@@ -139,7 +139,7 @@ func (c *Context) Cookie(name string) *http.Cookie {
 	return c.req.cookie(name)
 }
 
-// Cookies returns all cookies from the originReq.
+// Cookies returns all cookies from the req.
 func (c *Context) Cookies() []*http.Cookie {
 	return c.req.cookies()
 }
