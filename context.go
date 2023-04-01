@@ -206,18 +206,22 @@ func (c *Context) Redirect(code int, url string) {
 	c.res.redirect(code, url)
 }
 
+// UserAgent returns the user agent of the request.
 func (c *Context) UserAgent() string {
 	return c.req.userAgent()
 }
 
+// Referer returns the referer of the request.
 func (c *Context) Referer() string {
 	return c.req.referer()
 }
 
+// RemoteAddr returns the remote address of the request.
 func (c *Context) RemoteAddr() string {
 	return c.req.remoteAddr()
 }
 
+// Success writes a successful response with the given data.
 func (c *Context) Success(data interface{}) {
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"code": 0,
@@ -226,6 +230,7 @@ func (c *Context) Success(data interface{}) {
 	})
 }
 
+// Fail writes a failed response with the given code and message.
 func (c *Context) Fail(code int, msg string) {
 	c.JSON(http.StatusOK, map[string]interface{}{
 		"code": code,
