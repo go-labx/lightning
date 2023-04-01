@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"os"
 	"strings"
 )
 
@@ -19,3 +20,20 @@ func ParsePattern(pattern string) []string {
 
 // Map is a shortcut for map[string]interface{}
 type Map map[string]any
+
+func resolveAddress(addr []string) string {
+	if port := os.Getenv("PORT"); port != "" {
+		logger.Debug("Environment variable PORT=\"%s\"", port)
+		return ":" + port
+	}
+
+	switch len(addr) {
+	case 0:
+		logger.Debug("Using port :6789 by default")
+		return ":6789"
+	case 1:
+		return addr[0]
+	default:
+		panic("too many parameters")
+	}
+}

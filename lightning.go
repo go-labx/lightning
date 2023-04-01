@@ -26,12 +26,16 @@ func DefaultInternalServerError(ctx *Context) {
 	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 }
 
+var logger *lightlog.ConsoleLogger
+
 // NewApp returns a new instance of the Application struct.
 func NewApp() *Application {
+	logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
+
 	app := &Application{
 		router:                         NewRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
-		logger:                         lightlog.NewConsoleLogger("logger", lightlog.TRACE),
+		logger:                         logger,
 		NotFoundHandlerFunc:            DefaultNotFound,
 		InternalServerErrorHandlerFunc: DefaultInternalServerError,
 	}
@@ -134,12 +138,12 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // Run starts the HTTP server and listens for incoming requests.
-func (app *Application) Run() {
-	addr := "127.0.0.1:6789"
+func (app *Application) Run(address ...string) {
+	addr := resolveAddress(address)
 	app.logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
 
 	err := http.ListenAndServe(addr, app)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 }
