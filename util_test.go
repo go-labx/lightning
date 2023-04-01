@@ -146,3 +146,20 @@ func TestDefaultInternalServerError(t *testing.T) {
 		t.Errorf("expected body %q, got %q", http.StatusText(http.StatusInternalServerError), w.Body.String())
 	}
 }
+
+func TestIsValidHTTPMethod(t *testing.T) {
+	validMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
+	invalidMethods := []string{"", "get", "post", "put", "patch", "delete", "head", "options", "TRACE", "CONNECT"}
+
+	for _, method := range validMethods {
+		if !isValidHTTPMethod(method) {
+			t.Errorf("isValidHTTPMethod(%q) = false, want true", method)
+		}
+	}
+
+	for _, method := range invalidMethods {
+		if isValidHTTPMethod(method) {
+			t.Errorf("isValidHTTPMethod(%q) = true, want false", method)
+		}
+	}
+}

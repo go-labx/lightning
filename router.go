@@ -158,12 +158,3 @@ func (r *Router) Patch(path string, handlers ...HandlerFunc) {
 func (r *Router) Options(path string, handlers ...HandlerFunc) {
 	r.AddRoute(http.MethodOptions, path, handlers)
 }
-
-// isValidHTTPMethod checks if a given HTTP method is valid.
-func isValidHTTPMethod(method string) bool {
-	switch method {
-	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":
-		return true
-	}
-	return false
-}

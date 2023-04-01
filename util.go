@@ -45,3 +45,12 @@ func defaultNotFound(ctx *Context) {
 func defaultInternalServerError(ctx *Context) {
 	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
 }
+
+// isValidHTTPMethod checks if a given HTTP method is valid.
+func isValidHTTPMethod(method string) bool {
+	switch method {
+	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":
+		return true
+	}
+	return false
+}
