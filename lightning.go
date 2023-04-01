@@ -12,7 +12,7 @@ type HandlerFunc func(*Context)
 type Map map[string]any
 
 type Application struct {
-	router      *Router
+	router      *router
 	middlewares []HandlerFunc
 
 	Logger                         *lightlog.ConsoleLogger
@@ -25,7 +25,7 @@ var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 // NewApp returns a new instance of the Application struct.
 func NewApp() *Application {
 	app := &Application{
-		router:                         NewRouter(),
+		router:                         newRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
 		Logger:                         logger,
 		NotFoundHandlerFunc:            defaultNotFound,
@@ -49,50 +49,50 @@ func (app *Application) Use(middlewares ...HandlerFunc) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
 
-// AddRoute is a function that adds a new route to the Router.
+// AddRoute is a function that adds a new route to the router.
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
-// to form a single MiddlewareFunc, and then adds it to the Router.
+// to form a single MiddlewareFunc, and then adds it to the router.
 func (app *Application) AddRoute(method string, pattern string, handlers []HandlerFunc) {
 	app.Logger.Debug("register route %s\t-> %s", method, pattern)
 	allHandlers := append(app.middlewares, handlers...)
 
-	app.router.AddRoute(method, pattern, allHandlers)
+	app.router.addRoute(method, pattern, allHandlers)
 }
 
-// The following functions are shortcuts for the AddRoute function.
-// They pre-fill the method parameter and call the AddRoute function.
+// The following functions are shortcuts for the addRoute function.
+// They pre-fill the method parameter and call the addRoute function.
 
-// Get adds a new route with method "GET" to the Router.
+// Get adds a new route with method "GET" to the router.
 func (app *Application) Get(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("GET", pattern, handlers)
 }
 
-// Post adds a new route with method "POST" to the Router.
+// Post adds a new route with method "POST" to the router.
 func (app *Application) Post(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("POST", pattern, handlers)
 }
 
-// Put adds a new route with method "PUT" to the Router.
+// Put adds a new route with method "PUT" to the router.
 func (app *Application) Put(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PUT", pattern, handlers)
 }
 
-// Delete adds a new route with method "DELETE" to the Router.
+// Delete adds a new route with method "DELETE" to the router.
 func (app *Application) Delete(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("DELETE", pattern, handlers)
 }
 
-// Head adds a new route with method "HEAD" to the Router.
+// Head adds a new route with method "HEAD" to the router.
 func (app *Application) Head(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("HEAD", pattern, handlers)
 }
 
-// Patch adds a new route with method "PATCH" to the Router.
+// Patch adds a new route with method "PATCH" to the router.
 func (app *Application) Patch(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PATCH", pattern, handlers)
 }
 
-// Options adds a new route with method "OPTIONS" to the Router.
+// Options adds a new route with method "OPTIONS" to the router.
 func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("OPTIONS", pattern, handlers)
 }
@@ -114,7 +114,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer ctx.Flush()
 
 	// Find the matching route and set the handlers and params in the context
-	handlers, params := app.router.FindRoute(req.Method, req.URL.Path)
+	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
 	// This check is necessary because if no matching route is found and the handlers slice is left empty,
 	// the middleware chain will not be executed and the client will receive an empty response.
 	// By appending the 404 handler function to the handlers slice,

@@ -1,4 +1,3 @@
-// Package lightning is a Go library that provides a lightweight, high-perform
 package lightning
 
 import (
@@ -6,24 +5,24 @@ import (
 	"strings"
 )
 
-// TrieNode represents a node in the trie data structure used by the router.
-type TrieNode struct {
-	children map[string]*TrieNode // A map of child nodes keyed by their string values
+// trieNode represents a node in the trie data structure used by the router.
+type trieNode struct {
+	children map[string]*trieNode // A map of child nodes keyed by their string values
 	isEnd    bool                 // boolean flag indicating whether the node marks the end of a route
 	handlers []HandlerFunc        // `HandlerFunc` functions that handles requests for the node's route
 	params   map[string]int       // a map of parameter names and their corresponding indices in the route pattern
 	wildcard string               // a string representing the name of the wildcard parameter in the route pattern (if any)
 }
 
-// Router represents the HTTP router.
-type Router struct {
-	roots map[string]*TrieNode
+// router represents the HTTP router.
+type router struct {
+	roots map[string]*trieNode
 }
 
-// NewTrieNode creates a new instance of the `TrieNode` struct with default values.
-func NewTrieNode() *TrieNode {
-	return &TrieNode{
-		children: make(map[string]*TrieNode),
+// newTrieNode creates a new instance of the `trieNode` struct with default values.
+func newTrieNode() *trieNode {
+	return &trieNode{
+		children: make(map[string]*trieNode),
 		isEnd:    false,
 		handlers: []HandlerFunc{},
 		params:   make(map[string]int),
@@ -31,21 +30,21 @@ func NewTrieNode() *TrieNode {
 	}
 }
 
-// NewRouter creates a new instance of the `Router` struct with an empty `roots` map.
-func NewRouter() *Router {
-	return &Router{
-		roots: make(map[string]*TrieNode),
+// newRouter creates a new instance of the `router` struct with an empty `roots` map.
+func newRouter() *router {
+	return &router{
+		roots: make(map[string]*trieNode),
 	}
 }
 
-// AddRoute adds a new route to the router.
-func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc) {
+// addRoute adds a new route to the router.
+func (r *router) addRoute(method string, pattern string, handlers []HandlerFunc) {
 	if !isValidHTTPMethod(method) {
 		panic(fmt.Sprintf("method `%s` is not a standard HTTP method", method))
 	}
 	root, ok := r.roots[method]
 	if !ok {
-		root = NewTrieNode()
+		root = newTrieNode()
 		r.roots[method] = root
 	}
 
@@ -57,14 +56,14 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 			name := part[1:]
 			params[name] = i
 			if root.children[":"] == nil {
-				root.children[":"] = NewTrieNode()
+				root.children[":"] = newTrieNode()
 			}
 			root = root.children[":"]
 		} else if part[0] == '*' {
 			// wildcard
 			name := part[1:]
 			if root.children["*"] == nil {
-				root.children["*"] = NewTrieNode()
+				root.children["*"] = newTrieNode()
 			}
 			root = root.children["*"]
 			root.wildcard = name
@@ -72,7 +71,7 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 		} else {
 			// static
 			if root.children[part] == nil {
-				root.children[part] = NewTrieNode()
+				root.children[part] = newTrieNode()
 			}
 			root = root.children[part]
 		}
@@ -83,8 +82,8 @@ func (r *Router) AddRoute(method string, pattern string, handlers []HandlerFunc)
 	root.params = params     // set the parameters for the route
 }
 
-// FindRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
-func (r *Router) FindRoute(method string, pattern string) ([]HandlerFunc, map[string]string) {
+// findRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
+func (r *router) findRoute(method string, pattern string) ([]HandlerFunc, map[string]string) {
 	root, ok := r.roots[method]
 	if !ok {
 		return nil, nil
