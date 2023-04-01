@@ -61,6 +61,7 @@ func (r *response) xml(obj interface{}) error {
 
 // text sets plain text as the response data.
 func (r *response) text(text string) {
+	r.originRes.Header().Set("Content-Type", "text/plain")
 	r.raw([]byte(text))
 }
 

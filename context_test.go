@@ -262,7 +262,7 @@ func TestContext_Status(t *testing.T) {
 	}
 }
 
-func TestSetStatus(t *testing.T) {
+func TestContext_SetStatus(t *testing.T) {
 	// Create a new context object
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -597,7 +597,7 @@ func TestContext_GetData(t *testing.T) {
 	}
 }
 
-func TestRedirect(t *testing.T) {
+func TestContext_Redirect(t *testing.T) {
 	req, err := http.NewRequest("GET", "/test", nil)
 	if err != nil {
 		t.Fatal(err)
