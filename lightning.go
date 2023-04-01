@@ -99,7 +99,7 @@ func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 
 // Group returns a new instance of the Group struct with the given prefix.
 func (app *Application) Group(prefix string) *Group {
-	return NewGroup(app, prefix)
+	return newGroup(app, prefix)
 }
 
 // ServeHTTP is the function that handles HTTP requests.
@@ -107,13 +107,13 @@ func (app *Application) Group(prefix string) *Group {
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Create a new context
-	ctx, err := NewContext(w, req)
+	ctx, err := newContext(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	defer ctx.Flush()
+	defer ctx.flushResponse()
 
-	// Find the matching route and set the handlers and params in the context
+	// Find the matching route and set the handlers and paramsMap in the context
 	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
 	// This check is necessary because if no matching route is found and the handlers slice is left empty,
 	// the middleware chain will not be executed and the client will receive an empty response.
@@ -122,8 +122,8 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	if handlers == nil {
 		handlers = append(app.middlewares, app.NotFoundHandlerFunc)
 	}
-	ctx.SetHandlers(handlers)
-	ctx.SetParams(params)
+	ctx.setHandlers(handlers)
+	ctx.setParams(params)
 
 	// Execute the middleware chain
 	ctx.Next()

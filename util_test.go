@@ -108,11 +108,11 @@ func TestDefaultNotFound(t *testing.T) {
 
 	// Create a new context with a mock response writer
 	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	ctx, _ := newContext(w, req)
 
 	// Call the defaultNotFound function
 	defaultNotFound(ctx)
-	ctx.Flush()
+	ctx.flushResponse()
 
 	// Verify that the response status code is 404
 	if w.Code != http.StatusNotFound {
@@ -130,11 +130,11 @@ func TestDefaultInternalServerError(t *testing.T) {
 
 	// Create a new context with a mock response writer
 	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	ctx, _ := newContext(w, req)
 
 	// Call the defaultInternalServerError function
 	defaultInternalServerError(ctx)
-	ctx.Flush()
+	ctx.flushResponse()
 
 	// Verify that the response status code is 500
 	if w.Code != http.StatusInternalServerError {
@@ -149,7 +149,7 @@ func TestDefaultInternalServerError(t *testing.T) {
 
 func TestIsValidHTTPMethod(t *testing.T) {
 	validMethods := []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"}
-	invalidMethods := []string{"", "get", "post", "put", "patch", "delete", "head", "options", "TRACE", "CONNECT"}
+	invalidMethods := []string{"", "get", "Post", "Put", "patch", "delete", "Head", "Options", "TRACE", "CONNECT"}
 
 	for _, method := range validMethods {
 		if !isValidHTTPMethod(method) {

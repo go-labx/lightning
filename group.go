@@ -10,8 +10,8 @@ type Group struct {
 	middlewares []HandlerFunc
 }
 
-// NewGroup creates a new Group with the given prefix and Application.
-func NewGroup(app *Application, prefix string) *Group {
+// newGroup creates a new Group with the given prefix and Application.
+func newGroup(app *Application, prefix string) *Group {
 	return &Group{
 		app:         app,
 		prefix:      prefix,
@@ -38,7 +38,7 @@ func (g *Group) getMiddlewares() []HandlerFunc {
 
 // Group creates a new Group with the given prefix and adds it as a child of the current Group.
 func (g *Group) Group(prefix string) *Group {
-	group := NewGroup(g.app, prefix)
+	group := newGroup(g.app, prefix)
 	group.parent = g
 	return group
 }

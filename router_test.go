@@ -38,7 +38,7 @@ func TestNewTrieNode(t *testing.T) {
 	}
 
 	if len(node.params) != 0 {
-		t.Errorf("Expected params to be empty, but got %v", node.params)
+		t.Errorf("Expected paramsMap to be empty, but got %v", node.params)
 	}
 }
 
@@ -66,7 +66,7 @@ func TestAddRouteStaticPatternValidHandler(t *testing.T) {
 		t.Errorf("expected node to have a non-nil handler, but got nil")
 	}
 	if node.params == nil {
-		t.Errorf("expected node to have non-nil params, but got nil")
+		t.Errorf("expected node to have non-nil paramsMap, but got nil")
 	}
 }
 
@@ -88,7 +88,7 @@ func TestAddRouteParameterizedPatternValidHandler(t *testing.T) {
 		t.Errorf("Expected a non-nil node, but got nil")
 	}
 	if node.params == nil {
-		t.Errorf("Expected non-nil params, but got nil")
+		t.Errorf("Expected non-nil paramsMap, but got nil")
 	}
 	if node.params["id"] != 1 {
 		t.Errorf("Expected 1 parameter, but got %d", node.params["id"])
@@ -120,7 +120,7 @@ func TestAddRouteWildcardPatternValidHandler(t *testing.T) {
 		t.Errorf("Expected node to have a non-nil handler, but got nil")
 	}
 	if node.params == nil {
-		t.Errorf("Expected node to have non-nil params, but got nil")
+		t.Errorf("Expected node to have non-nil paramsMap, but got nil")
 	}
 	if node.wildcard != "name" {
 		t.Errorf("Expected node to have wildcard 'name', but got '%s'", node.wildcard)
@@ -160,26 +160,26 @@ func TestRouter_FindRoute(t *testing.T) {
 
 	// Test case 1: invalid HTTP method
 	if handlers, params := router.findRoute("INVALID_METHOD", "/test"); handlers != nil || params != nil {
-		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handlers, params)
+		t.Errorf("Expected nil handler and paramsMap, but got handler %v and paramsMap %v", handlers, params)
 	}
 
 	// Test case 2: route does not exist
 	if handlers, params := router.findRoute(http.MethodGet, "/invalid"); handlers != nil || params != nil {
-		t.Errorf("Expected nil handler and params, but got handler %v and params %v", handlers, params)
+		t.Errorf("Expected nil handler and paramsMap, but got handler %v and paramsMap %v", handlers, params)
 	}
 
 	// Test case 3: route exists with no parameters
 	if handlers, params := router.findRoute(http.MethodGet, "/test"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 0 {
-		t.Errorf("Expected handler %v and empty params map, but got handler %v and params %v", "testHandler", handlers[0], params)
+		t.Errorf("Expected handler %v and empty paramsMap map, but got handler %v and paramsMap %v", "testHandler", handlers[0], params)
 	}
 
 	// Test case 4: route exists with parameters
 	if handlers, params := router.findRoute(http.MethodGet, "/users/123"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["id"] != "123" {
-		t.Errorf("Expected handler %v and params map {\"id\":\"123\"}, but got handler %v and params %v", "testHandler", handlers[0], params)
+		t.Errorf("Expected handler %v and paramsMap map {\"id\":\"123\"}, but got handler %v and paramsMap %v", "testHandler", handlers[0], params)
 	}
 
 	// Test case 5: route exists with wildcard parameter
 	if handlers, params := router.findRoute(http.MethodGet, "/files/path/to/file.txt"); reflect.ValueOf(handlers[0]).Pointer() != reflect.ValueOf(testHandler).Pointer() || len(params) != 1 || params["path"] != "path/to/file.txt" {
-		t.Errorf("Expected handler %v and params map {\"path\":\"path/to/file.txt\"}, but got handler %v and params %v", "testHandler", handlers[0], params)
+		t.Errorf("Expected handler %v and paramsMap map {\"path\":\"path/to/file.txt\"}, but got handler %v and paramsMap %v", "testHandler", handlers[0], params)
 	}
 }

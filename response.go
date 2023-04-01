@@ -13,7 +13,7 @@ type response struct {
 	req         *http.Request       // A pointer to an HTTP request.
 	res         http.ResponseWriter // An HTTP response writer.
 	status      int                 // The status code of the HTTP response (e.g. 200, 404, 500, etc.).
-	cookies     Cookies             // An array of cookies to be sent with the HTTP response.
+	cookies     cookiesMap          // An array of cookies to be sent with the HTTP response.
 	data        []byte              // The response data to be sent.
 	redirectUrl string              // The URL to redirect to.
 	fileUrl     string              // The file to send.
@@ -25,7 +25,7 @@ func newResponse(req *http.Request, res http.ResponseWriter) *response {
 		req:         req,
 		res:         res,
 		status:      http.StatusNotFound,
-		cookies:     Cookies{},
+		cookies:     cookiesMap{},
 		data:        nil,
 		redirectUrl: "",
 	}
