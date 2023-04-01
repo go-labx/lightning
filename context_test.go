@@ -567,3 +567,163 @@ func TestFile(t *testing.T) {
 			status, http.StatusOK)
 	}
 }
+
+func TestContext_GetData(t *testing.T) {
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	ctx, err := newContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Test getting a non-existent key
+	if ctx.GetData("nonexistent") != nil {
+		t.Errorf("expected nil value for nonexistent key, got %v", ctx.GetData("nonexistent"))
+	}
+
+	// Test setting and getting a key
+	ctx.SetData("key", "value")
+	if ctx.GetData("key") != "value" {
+		t.Errorf("expected value 'value' for key 'key', got %v", ctx.GetData("key"))
+	}
+
+	// Test deleting a key
+	ctx.DelData("key")
+	if ctx.GetData("key") != nil {
+		t.Errorf("expected nil value for deleted key 'key', got %v", ctx.GetData("key"))
+	}
+}
+
+func TestRedirect(t *testing.T) {
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	ctx, err := newContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Call the Redirect method with a test URL and status code
+	redirectUrl := "https://example.com"
+	ctx.Redirect(http.StatusMovedPermanently, redirectUrl)
+	ctx.flushResponse()
+
+	// Verify that the response status code and location header are set correctly
+	if rr.Result().StatusCode != http.StatusMovedPermanently {
+		t.Errorf("expected status code %d, got %d", http.StatusMovedPermanently, rr.Result().StatusCode)
+	}
+	url := rr.Header().Get("Location")
+	if url != redirectUrl {
+		t.Errorf("expected Location header %q, got %q", redirectUrl, url)
+	}
+}
+
+func TestUserAgent(t *testing.T) {
+	ctx := createMockContext(t)
+	ua := "my-user-agent"
+	ctx.req.originReq.Header.Add("user-agent", ua)
+
+	if userAgent := ctx.UserAgent(); userAgent != "my-user-agent" {
+		t.Errorf("expected user agent %q, got %q", ua, userAgent)
+	}
+}
+
+func TestReferer(t *testing.T) {
+	ctx := createMockContext(t)
+	ref := "https://example.com"
+	ctx.req.originReq.Header.Add("referer", ref)
+
+	if referer := ctx.Referer(); referer != ref {
+		t.Errorf("expected referer %q, got %q", ref, referer)
+	}
+}
+
+func TestContext_RemoteAddr(t *testing.T) {
+	ctx := createMockContext(t)
+	expected := "1.2.3.4:5678"
+	ctx.req.originReq.RemoteAddr = expected
+
+	if addr := ctx.RemoteAddr(); addr != expected {
+		t.Errorf("Expected RemoteAddr to return %q, but got %q", expected, addr)
+	}
+}
+
+func createMockContext(t *testing.T) *Context {
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+	ctx, err := newContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return ctx
+}
+
+func TestContext_Success(t *testing.T) {
+	// Create a new request with an empty body
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a new ResponseRecorder to record the response
+	rr := httptest.NewRecorder()
+
+	// Create a new context with the request and response recorder
+	ctx, err := newContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Call the Success method with some test data
+	testData := map[string]string{"foo": "bar"}
+	ctx.Success(testData)
+	ctx.flushResponse()
+
+	// Check the response status code
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v",
+			status, http.StatusOK)
+	}
+
+	// Check the response body
+	expected := `{"code":0,"data":{"foo":"bar"},"msg":"ok"}`
+	if rr.Body.String() != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v",
+			rr.Body.String(), expected)
+	}
+}
+
+func TestContextFail(t *testing.T) {
+	// Create a new context with a mock response writer and request
+	req, err := http.NewRequest("GET", "/test", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := httptest.NewRecorder()
+	ctx, err := newContext(w, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Call the Fail method with a custom code and message
+	ctx.Fail(500, "Internal Server Error")
+	ctx.flushResponse()
+
+	// Check that the response status code and body are correct
+	if w.Code != 200 {
+		t.Errorf("expected status code 200, got %d", w.Code)
+	}
+	expectedBody := `{"code":500,"msg":"Internal Server Error"}`
+	if w.Body.String() != expectedBody {
+		t.Errorf("expected body %q, got %q", expectedBody, w.Body.String())
+	}
+}
