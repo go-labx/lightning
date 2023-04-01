@@ -1,11 +1,11 @@
 ## Introduction
 
-lightning is a lightweight and fast web framework for Go. It is designed to be easy to use and highly performant.
+🚀🚀🚀 lightning is a lightweight and fast web framework for Go. It is designed to be easy to use and highly performant.
 
 ## Features
 
 - Easy to use and quick to get started
-- Supports middleware and onion model
+- Supports middleware
 - Fast routing, with routing algorithm implemented based on Trie tree
 - Support for grouping routes and applying middleware to specific groups
 - Customizable 404 Not Found and 500 Internal Server Error handler functions
@@ -29,10 +29,10 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp()
+	app := lightning.DefaultApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, map[string]string{
+		ctx.JSON(http.StatusOK, lightning.Map{
 			"message": "pong",
 		})
 	})
@@ -40,6 +40,19 @@ func main() {
 	app.Run()
 }
 ```
+
+To run the lightning app, run the following command:
+
+```bash
+go run app.go
+```
+
+To verify that the server has started successfully, run the following command in your terminal:
+
+```bash
+curl http://127.0.0.1:6789/ping
+```
+
 
 ## Documentation
 
