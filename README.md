@@ -2,6 +2,10 @@
 
 🚀🚀🚀 lightning is a lightweight and fast web framework for Go. It is designed to be easy to use and highly performant.
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-labx/lightning.svg)](https://pkg.go.dev/github.com/go-labx/lightning)
+![GitHub](https://img.shields.io/github/license/go-labx/lightning)
+![](https://img.shields.io/github/v/release/go-labx/lightning.svg)
+
 ## Features
 
 - Easy to use and quick to get started
