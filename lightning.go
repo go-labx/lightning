@@ -16,7 +16,7 @@ type Application struct {
 	middlewares []HandlerFunc
 
 	Logger                         *lightlog.ConsoleLogger
-	NotFoundHandlerFunc            HandlerFunc // Handler function for 404 Not Found error
+	NotFoundHandler                HandlerFunc // Handler function for 404 Not Found error
 	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
 }
 
@@ -28,7 +28,7 @@ func NewApp() *Application {
 		router:                         newRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
 		Logger:                         logger,
-		NotFoundHandlerFunc:            defaultNotFound,
+		NotFoundHandler:                defaultNotFound,
 		InternalServerErrorHandlerFunc: defaultInternalServerError,
 	}
 
@@ -120,7 +120,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// By appending the 404 handler function to the handlers slice,
 	// we ensure that the middleware chain will always be executed, even if no matching route is found.
 	if handlers == nil {
-		handlers = append(app.middlewares, app.NotFoundHandlerFunc)
+		handlers = append(app.middlewares, app.NotFoundHandler)
 	}
 	ctx.setHandlers(handlers)
 	ctx.setParams(params)

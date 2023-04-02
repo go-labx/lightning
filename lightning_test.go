@@ -22,9 +22,9 @@ func TestDefaultApp(t *testing.T) {
 		t.Errorf("Expected Logger field to not be nil")
 	}
 
-	// Assert that the NotFoundHandlerFunc field is not nil
-	if app.NotFoundHandlerFunc == nil {
-		t.Errorf("Expected NotFoundHandlerFunc field to not be nil")
+	// Assert that the NotFoundHandler field is not nil
+	if app.NotFoundHandler == nil {
+		t.Errorf("Expected NotFoundHandler field to not be nil")
 	}
 
 	// Assert that the InternalServerErrorHandlerFunc field is not nil
