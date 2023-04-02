@@ -16,7 +16,7 @@ func TestNewRequest(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want *Request
+		want *request
 	}{
 		{
 			name: "Test_NewRequest",
@@ -24,20 +24,20 @@ func TestNewRequest(t *testing.T) {
 				req:    req,
 				params: params,
 			},
-			want: &Request{
-				req:    req,
-				params: params,
-				method: req.Method,
-				path:   req.URL.Path,
+			want: &request{
+				originReq: req,
+				paramsMap: params,
+				method:    req.Method,
+				path:      req.URL.Path,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, _ := NewRequest(tt.args.req)
-			got.SetParams(tt.args.params)
+			got, _ := newRequest(tt.args.req)
+			got.setParams(tt.args.params)
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewRequest() = %v, want %v", got, tt.want)
+				t.Errorf("newRequest() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -84,14 +84,14 @@ func TestRequest_Cookie(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Cookie(tt.args.name); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Cookie() = %v, want %v", got, tt.want)
+			if got := r.cookie(tt.args.name); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("cookie() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -124,14 +124,14 @@ func TestRequest_Cookies(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Cookies(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Cookies() = %v, want %v", got, tt.want)
+			if got := r.cookies(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("cookies() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -178,14 +178,14 @@ func TestRequest_Header(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Header(tt.args.key); got != tt.want {
-				t.Errorf("Header() = %v, want %v", got, tt.want)
+			if got := r.header(tt.args.key); got != tt.want {
+				t.Errorf("header() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -217,14 +217,14 @@ func TestRequest_Headers(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Headers(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Headers() = %v, want %v", got, tt.want)
+			if got := r.headers(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("headers() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -273,14 +273,14 @@ func TestRequest_Param(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Param(tt.args.key); got != tt.want {
-				t.Errorf("Param() = %v, want %v", got, tt.want)
+			if got := r.param(tt.args.key); got != tt.want {
+				t.Errorf("param() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -311,14 +311,14 @@ func TestRequest_Params(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Params(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Params() = %v, want %v", got, tt.want)
+			if got := r.params(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("params() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -348,14 +348,14 @@ func TestRequest_Queries(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Queries(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("Queries() = %v, want %v", got, tt.want)
+			if got := r.queries(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("queries() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -401,14 +401,14 @@ func TestRequest_Query(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := &Request{
-				req:    tt.fields.req,
-				params: tt.fields.params,
-				method: tt.fields.method,
-				path:   tt.fields.path,
+			r := &request{
+				originReq: tt.fields.req,
+				paramsMap: tt.fields.params,
+				method:    tt.fields.method,
+				path:      tt.fields.path,
 			}
-			if got := r.Query(tt.args.key); got != tt.want {
-				t.Errorf("Query() = %v, want %v", got, tt.want)
+			if got := r.query(tt.args.key); got != tt.want {
+				t.Errorf("query() = %v, want %v", got, tt.want)
 			}
 		})
 	}

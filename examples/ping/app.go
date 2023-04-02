@@ -9,7 +9,7 @@ func main() {
 	app := lightning.DefaultApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, map[string]string{
+		ctx.JSON(http.StatusOK, lightning.Map{
 			"message": "pong",
 		})
 	})

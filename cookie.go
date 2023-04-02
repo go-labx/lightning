@@ -4,16 +4,16 @@ import (
 	"net/http"
 )
 
-// Cookies is a map of http.Cookie pointers.
-type Cookies map[string]*http.Cookie
+// cookiesMap is a map of http.Cookie pointers.
+type cookiesMap map[string]*http.Cookie
 
-// Get returns the http.Cookie pointer with the given key.
-func (cookies Cookies) Get(key string) *http.Cookie {
+// get returns the http.Cookie pointer with the given key.
+func (cookies cookiesMap) get(key string) *http.Cookie {
 	return cookies[key]
 }
 
-// Set sets the http.Cookie with the given key and value.
-func (cookies Cookies) Set(key string, value string) {
+// set sets the http.Cookie with the given key and value.
+func (cookies cookiesMap) set(key string, value string) {
 	cookies[key] = &http.Cookie{
 		Name:  key,
 		Value: value,
@@ -21,12 +21,12 @@ func (cookies Cookies) Set(key string, value string) {
 	}
 }
 
-// Del deletes the http.Cookie with the given key.
-func (cookies Cookies) Del(key string) {
+// del deletes the http.Cookie with the given key.
+func (cookies cookiesMap) del(key string) {
 	delete(cookies, key)
 }
 
-// SetCustom sets the given http.Cookie pointer.
-func (cookies Cookies) SetCustom(cookie *http.Cookie) {
+// setCustom sets the given http.Cookie pointer.
+func (cookies cookiesMap) setCustom(cookie *http.Cookie) {
 	cookies[cookie.Name] = cookie
 }

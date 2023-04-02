@@ -5,16 +5,16 @@ import (
 	"net/http"
 )
 
-type Request struct {
-	req     *http.Request
-	params  map[string]string
-	method  string
-	path    string
-	RawBody []byte
+type request struct {
+	originReq *http.Request
+	paramsMap map[string]string
+	method    string
+	path      string
+	rawBody   []byte
 }
 
-// NewRequest creates a new Request object from an http.Request object
-func NewRequest(req *http.Request) (*Request, error) {
+// newRequest creates a new request object from an http.Request object
+func newRequest(req *http.Request) (*request, error) {
 	var rawBody []byte
 	var err error
 	if req.Body != nil {
@@ -24,80 +24,80 @@ func NewRequest(req *http.Request) (*Request, error) {
 		}
 	}
 
-	request := &Request{
-		req:     req,
-		params:  map[string]string{},
-		method:  req.Method,
-		path:    req.URL.Path,
-		RawBody: rawBody,
+	request := &request{
+		originReq: req,
+		paramsMap: map[string]string{},
+		method:    req.Method,
+		path:      req.URL.Path,
+		rawBody:   rawBody,
 	}
 
 	return request, nil
 }
 
-// SetParams sets the parameters for the Request object
-func (r *Request) SetParams(params map[string]string) {
-	r.params = params
+// setParams sets the parameters for the request object
+func (r *request) setParams(params map[string]string) {
+	r.paramsMap = params
 }
 
-// Param returns the parameter value for a given key.
-func (r *Request) Param(key string) string {
-	return r.params[key]
+// param returns the parameter value for a given key.
+func (r *request) param(key string) string {
+	return r.paramsMap[key]
 }
 
-// Params returns the entire parameter map for the context.
-func (r *Request) Params() map[string]string {
-	return r.params
+// params returns the entire parameter map for the context.
+func (r *request) params() map[string]string {
+	return r.paramsMap
 }
 
-// Query returns the value of a given query parameter.
-func (r *Request) Query(key string) string {
-	return r.req.URL.Query().Get(key)
+// query returns the value of a given query parameter.
+func (r *request) query(key string) string {
+	return r.originReq.URL.Query().Get(key)
 }
 
-// Queries returns the entire query parameter map for the context.
-func (r *Request) Queries() map[string][]string {
-	return r.req.URL.Query()
+// queries returns the entire query parameter map for the context.
+func (r *request) queries() map[string][]string {
+	return r.originReq.URL.Query()
 }
 
-// Header returns the value of a given header.
-func (r *Request) Header(key string) string {
-	return r.req.Header.Get(key)
+// header returns the value of a given header.
+func (r *request) header(key string) string {
+	return r.originReq.Header.Get(key)
 }
 
-// Headers returns the entire header map for the request.
-func (r *Request) Headers() http.Header {
-	return r.req.Header
+// headers returns the entire header map for the request.
+func (r *request) headers() http.Header {
+	return r.originReq.Header
 }
 
-// Cookie returns the cookie with the given name.
-func (r *Request) Cookie(name string) *http.Cookie {
-	cookie, err := r.req.Cookie(name)
+// cookie returns the cookie with the given name.
+func (r *request) cookie(name string) *http.Cookie {
+	cookie, err := r.originReq.Cookie(name)
 	if err != nil {
 		return nil
 	}
 	return cookie
 }
 
-// Cookies returns all cookies from the request.
-func (r *Request) Cookies() []*http.Cookie {
-	return r.req.Cookies()
+// cookiesMap returns all cookies from the request.
+func (r *request) cookies() []*http.Cookie {
+	return r.originReq.Cookies()
 }
 
-func (r *Request) UserAgent() string {
-	return r.Header("user-agent")
+func (r *request) userAgent() string {
+	return r.header("user-agent")
 }
 
-func (r *Request) Referer() string {
-	return r.Header("referer")
+func (r *request) referer() string {
+	return r.header("referer")
 }
 
-func (r *Request) RemoteAddr() string {
-	ip := r.Header("x-real-ip")
+func (r *request) remoteAddr() string {
+	ip := r.header("x-real-ip")
 	if ip == "" {
-		ip = r.Header("x-forwarded-for")
+		ip = r.header("x-forwarded-for")
 		if ip == "" {
-			ip = r.req.RemoteAddr
+			ip = r.originReq.RemoteAddr
 		}
 	}
 	return ip

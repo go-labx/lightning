@@ -6,14 +6,14 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp()
+	app := lightning.DefaultApp()
 
 	app.Get("/text", func(ctx *lightning.Context) {
 		ctx.Text(http.StatusOK, "hello world")
 	})
 
 	app.Get("/json", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, map[string]string{
+		ctx.JSON(http.StatusOK, lightning.Map{
 			"message": "pong",
 		})
 	})
@@ -33,5 +33,5 @@ func main() {
 		ctx.File("./LICENSE")
 	})
 
-	app.Run()
+	app.Run(":6789")
 }

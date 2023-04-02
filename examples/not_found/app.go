@@ -9,7 +9,8 @@ import (
 func main() {
 	app := lightning.NewApp()
 
-	app.NotFoundHandlerFunc = func(ctx *lightning.Context) {
+	app.NotFoundHandler = func(ctx *lightning.Context) {
+		ctx.Redirect(http.StatusMovedPermanently, "/404")
 		ctx.JSON(http.StatusOK, map[string]interface{}{
 			"code": 404,
 			"msg":  fmt.Sprintf("API %s -> %s not found.", ctx.Method, ctx.Path),

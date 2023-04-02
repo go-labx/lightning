@@ -8,32 +8,28 @@ import (
 // HandlerFunc is a function type that represents the actual handler function for a route.
 type HandlerFunc func(*Context)
 
+// Map is a shortcut for map[string]interface{}
+type Map map[string]any
+
 type Application struct {
-	router                         *Router
-	middlewares                    []HandlerFunc
-	logger                         *lightlog.ConsoleLogger
-	NotFoundHandlerFunc            HandlerFunc // Handler function for 404 Not Found error
+	router      *router
+	middlewares []HandlerFunc
+
+	Logger                         *lightlog.ConsoleLogger
+	NotFoundHandler                HandlerFunc // Handler function for 404 Not Found error
 	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
 }
 
-// DefaultNotFound is the default handler function for 404 Not Found error
-func DefaultNotFound(ctx *Context) {
-	ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
-}
-
-// DefaultInternalServerError is the default handler function for 500 Internal Server Error
-func DefaultInternalServerError(ctx *Context) {
-	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
-}
+var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
 // NewApp returns a new instance of the Application struct.
 func NewApp() *Application {
 	app := &Application{
-		router:                         NewRouter(),
+		router:                         newRouter(),
 		middlewares:                    make([]HandlerFunc, 0),
-		logger:                         lightlog.NewConsoleLogger("logger", lightlog.TRACE),
-		NotFoundHandlerFunc:            DefaultNotFound,
-		InternalServerErrorHandlerFunc: DefaultInternalServerError,
+		Logger:                         logger,
+		NotFoundHandler:                defaultNotFound,
+		InternalServerErrorHandlerFunc: defaultInternalServerError,
 	}
 
 	return app
@@ -53,57 +49,57 @@ func (app *Application) Use(middlewares ...HandlerFunc) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
 
-// AddRoute is a function that adds a new route to the Router.
+// AddRoute is a function that adds a new route to the router.
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
-// to form a single MiddlewareFunc, and then adds it to the Router.
+// to form a single MiddlewareFunc, and then adds it to the router.
 func (app *Application) AddRoute(method string, pattern string, handlers []HandlerFunc) {
-	app.logger.Trace("register route %s\t-> %s", method, pattern)
+	app.Logger.Debug("register route %s\t-> %s", method, pattern)
 	allHandlers := append(app.middlewares, handlers...)
 
-	app.router.AddRoute(method, pattern, allHandlers)
+	app.router.addRoute(method, pattern, allHandlers)
 }
 
-// The following functions are shortcuts for the AddRoute function.
-// They pre-fill the method parameter and call the AddRoute function.
+// The following functions are shortcuts for the addRoute function.
+// They pre-fill the method parameter and call the addRoute function.
 
-// Get adds a new route with method "GET" to the Router.
+// Get adds a new route with method "GET" to the router.
 func (app *Application) Get(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("GET", pattern, handlers)
 }
 
-// Post adds a new route with method "POST" to the Router.
+// Post adds a new route with method "POST" to the router.
 func (app *Application) Post(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("POST", pattern, handlers)
 }
 
-// Put adds a new route with method "PUT" to the Router.
+// Put adds a new route with method "PUT" to the router.
 func (app *Application) Put(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PUT", pattern, handlers)
 }
 
-// Delete adds a new route with method "DELETE" to the Router.
+// Delete adds a new route with method "DELETE" to the router.
 func (app *Application) Delete(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("DELETE", pattern, handlers)
 }
 
-// Head adds a new route with method "HEAD" to the Router.
+// Head adds a new route with method "HEAD" to the router.
 func (app *Application) Head(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("HEAD", pattern, handlers)
 }
 
-// Patch adds a new route with method "PATCH" to the Router.
+// Patch adds a new route with method "PATCH" to the router.
 func (app *Application) Patch(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("PATCH", pattern, handlers)
 }
 
-// Options adds a new route with method "OPTIONS" to the Router.
+// Options adds a new route with method "OPTIONS" to the router.
 func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 	app.AddRoute("OPTIONS", pattern, handlers)
 }
 
 // Group returns a new instance of the Group struct with the given prefix.
 func (app *Application) Group(prefix string) *Group {
-	return NewGroup(app, prefix)
+	return newGroup(app, prefix)
 }
 
 // ServeHTTP is the function that handles HTTP requests.
@@ -111,35 +107,35 @@ func (app *Application) Group(prefix string) *Group {
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Create a new context
-	ctx, err := NewContext(w, req)
+	ctx, err := newContext(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	defer ctx.Flush()
+	defer ctx.flushResponse()
 
-	// Find the matching route and set the handlers and params in the context
-	handlers, params := app.router.FindRoute(req.Method, req.URL.Path)
+	// Find the matching route and set the handlers and paramsMap in the context
+	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
 	// This check is necessary because if no matching route is found and the handlers slice is left empty,
 	// the middleware chain will not be executed and the client will receive an empty response.
 	// By appending the 404 handler function to the handlers slice,
 	// we ensure that the middleware chain will always be executed, even if no matching route is found.
 	if handlers == nil {
-		handlers = append(app.middlewares, app.NotFoundHandlerFunc)
+		handlers = append(app.middlewares, app.NotFoundHandler)
 	}
-	ctx.SetHandlers(handlers)
-	ctx.SetParams(params)
+	ctx.setHandlers(handlers)
+	ctx.setParams(params)
 
 	// Execute the middleware chain
 	ctx.Next()
 }
 
 // Run starts the HTTP server and listens for incoming requests.
-func (app *Application) Run() {
-	addr := "127.0.0.1:6789"
-	app.logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
+func (app *Application) Run(address ...string) {
+	addr := resolveAddress(address)
+	app.Logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
 
 	err := http.ListenAndServe(addr, app)
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
 }

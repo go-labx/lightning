@@ -7,12 +7,14 @@ func Recovery() func(ctx *Context) {
 	return func(ctx *Context) {
 		defer func() {
 			if err := recover(); err != nil {
+				code := http.StatusInternalServerError
+
 				switch err.(type) {
 				case error:
-					message := http.StatusText(http.StatusInternalServerError) + ": " + err.(error).Error()
-					ctx.Text(http.StatusInternalServerError, message)
+					message := http.StatusText(code) + ": " + err.(error).Error()
+					ctx.Text(code, message)
 				default:
-					ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+					ctx.Text(code, http.StatusText(code))
 				}
 			}
 		}()
