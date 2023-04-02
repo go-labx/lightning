@@ -182,7 +182,7 @@ func (c *Context) XML(code int, obj interface{}) {
 func (c *Context) File(filepath string) {
 	err := c.res.file(filepath)
 	if err != nil {
-		return
+		panic(err)
 	}
 }
 

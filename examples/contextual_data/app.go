@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"github.com/go-labx/lightning"
-	"net/http"
 )
 
 func main() {
@@ -16,10 +16,20 @@ func main() {
 		ctx.Next()
 	})
 
-	app.Get("/", func(ctx *lightning.Context) {
+	app.Use(func(ctx *lightning.Context) {
 		session := ctx.GetData("session")
+		// write your logic here...
+		fmt.Println(session)
 
-		ctx.JSON(http.StatusOK, session)
+		ctx.Next()
+	})
+
+	app.Get("/api/user", func(ctx *lightning.Context) {
+		session := ctx.GetData("session")
+		// write your logic here...
+		fmt.Println(session)
+
+		ctx.Text(200, "hello world")
 	})
 
 	app.Run()
