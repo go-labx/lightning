@@ -56,15 +56,15 @@ curl http://127.0.0.1:6789/ping
 
 ## Documentation
 
-For more information on how to use lightning, check out the [documentation](https://go-labx.github.io/docs/intro).
+For more information on how to use lightning, check out the [documentation](https://go-labx.github.io/docs/introduction).
 
 ## Contributing
 
 If you'd like to contribute to lightning, please
-see [CONTRIBUTING.md](https://github.com/go-labx/lightning/blob/master/CONTRIBUTING.md) for guidelines.
+see [CONTRIBUTING.md](https://github.com/go-labx/lightning/blob/main/CONTRIBUTING.md) for guidelines.
 
 ## License
 
-lightning is licensed under the [MIT License](https://github.com/go-labx/lightning/blob/master/LICENSE).
+lightning is licensed under the [MIT License](https://github.com/go-labx/lightning/blob/main/LICENSE).
 
 
