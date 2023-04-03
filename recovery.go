@@ -3,7 +3,7 @@ package lightning
 import "net/http"
 
 // Recovery returns a middleware that recovers from panics and sends a 500 response with an error message.
-func Recovery() func(ctx *Context) {
+func Recovery() Middleware {
 	return func(ctx *Context) {
 		defer func() {
 			if err := recover(); err != nil {

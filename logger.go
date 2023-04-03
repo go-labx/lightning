@@ -6,7 +6,7 @@ import (
 )
 
 // Logger returns a middleware function that logs incoming requests
-func Logger() func(ctx *Context) {
+func Logger() Middleware {
 	return func(ctx *Context) {
 		start := time.Now()
 

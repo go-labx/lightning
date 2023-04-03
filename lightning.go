@@ -7,6 +7,7 @@ import (
 
 // HandlerFunc is a function type that represents the actual handler function for a route.
 type HandlerFunc func(*Context)
+type Middleware = HandlerFunc
 
 // Map is a shortcut for map[string]interface{}
 type Map map[string]any
@@ -45,7 +46,7 @@ func DefaultApp() *Application {
 }
 
 // Use adds one or more MiddlewareFuncs to the array of middlewares in the Application struct.
-func (app *Application) Use(middlewares ...HandlerFunc) {
+func (app *Application) Use(middlewares ...Middleware) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
 
