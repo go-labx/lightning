@@ -16,8 +16,8 @@ type Context struct {
 	Path     string // URL path of the originReq
 }
 
-// newContext creates a new context object with the given HTTP response writer and req.
-func newContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
+// NewContext creates a new context object with the given HTTP response writer and req.
+func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
 	request, err := newRequest(req)
 	if err != nil {
 		return nil, err

@@ -15,7 +15,7 @@ func TestNewContext(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +57,7 @@ func TestFlushResponse(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// Create a new context object with the mock response writer
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +82,7 @@ func TestRawBody(t *testing.T) {
 	}
 	res := httptest.NewRecorder()
 
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +101,7 @@ func TestStringBody(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := httptest.NewRecorder()
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestJSONBody(t *testing.T) {
 
 	// Create a new context with the request and response writer
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -158,7 +158,7 @@ func TestSetHandlers(t *testing.T) {
 	// Create a new context with the request and response writer
 	w := httptest.NewRecorder()
 
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestContext_Param(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err := newContext(httptest.NewRecorder(), req)
+	ctx, err := NewContext(httptest.NewRecorder(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestContext_Query(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err := newContext(httptest.NewRecorder(), req)
+	ctx, err := NewContext(httptest.NewRecorder(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -220,7 +220,7 @@ func TestContextQueries(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ctx, err := newContext(httptest.NewRecorder(), req)
+	ctx, err := NewContext(httptest.NewRecorder(), req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -243,7 +243,7 @@ func TestContext_Status(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Create a new context object
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -269,7 +269,7 @@ func TestContext_SetStatus(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -290,7 +290,7 @@ func TestHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -308,7 +308,7 @@ func TestHeaders(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -334,7 +334,7 @@ func TestAddHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := httptest.NewRecorder()
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -357,7 +357,7 @@ func TestSetHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := httptest.NewRecorder()
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -380,7 +380,7 @@ func TestDelHeader(t *testing.T) {
 		t.Fatal(err)
 	}
 	res := httptest.NewRecorder()
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -406,7 +406,7 @@ func TestContextCookie(t *testing.T) {
 	req.AddCookie(cookie)
 
 	res := httptest.NewRecorder()
-	ctx, err := newContext(res, req)
+	ctx, err := NewContext(res, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +424,7 @@ func TestCookies(t *testing.T) {
 	cookie := &http.Cookie{Name: "test", Value: "value"}
 	req.AddCookie(cookie)
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +448,7 @@ func TestSetCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -477,7 +477,7 @@ func TestSetCustomCookie(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -507,7 +507,7 @@ func TestJSON(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -532,7 +532,7 @@ func TestText(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -556,7 +556,7 @@ func TestText(t *testing.T) {
 //		t.Fatal(err)
 //	}
 //	rr := httptest.NewRecorder()
-//	ctx, err := newContext(rr, req)
+//	ctx, err := NewContext(rr, req)
 //	if err != nil {
 //		t.Fatal(err)
 //	}
@@ -574,7 +574,7 @@ func TestContext_GetData(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -603,7 +603,7 @@ func TestContext_Redirect(t *testing.T) {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -659,7 +659,7 @@ func createMockContext(t *testing.T) *Context {
 		t.Fatal(err)
 	}
 	rr := httptest.NewRecorder()
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -678,7 +678,7 @@ func TestContext_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 
 	// Create a new context with the request and response recorder
-	ctx, err := newContext(rr, req)
+	ctx, err := NewContext(rr, req)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -709,7 +709,7 @@ func TestContextFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := httptest.NewRecorder()
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		t.Fatal(err)
 	}

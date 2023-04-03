@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - Apr 3, 2023
+
+### Changed
+
+- expose `NewContext` function
+
 ## [0.1.1] - Apr 3, 2023
 
 ### Added
