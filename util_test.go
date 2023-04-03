@@ -108,7 +108,7 @@ func TestDefaultNotFound(t *testing.T) {
 
 	// Create a new context with a mock response writer
 	w := httptest.NewRecorder()
-	ctx, _ := newContext(w, req)
+	ctx, _ := NewContext(w, req)
 
 	// Call the defaultNotFound function
 	defaultNotFound(ctx)
@@ -130,7 +130,7 @@ func TestDefaultInternalServerError(t *testing.T) {
 
 	// Create a new context with a mock response writer
 	w := httptest.NewRecorder()
-	ctx, _ := newContext(w, req)
+	ctx, _ := NewContext(w, req)
 
 	// Call the defaultInternalServerError function
 	defaultInternalServerError(ctx)

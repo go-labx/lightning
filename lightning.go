@@ -108,7 +108,7 @@ func (app *Application) Group(prefix string) *Group {
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Create a new context
-	ctx, err := newContext(w, req)
+	ctx, err := NewContext(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
