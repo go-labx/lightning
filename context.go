@@ -154,6 +154,16 @@ func (c *Context) SetCustomCookie(cookie *http.Cookie) {
 	c.res.cookies.setCustom(cookie)
 }
 
+// Body returns the response body.
+func (c *Context) Body() []byte {
+	return c.res.body
+}
+
+// SetBody sets the response body.
+func (c *Context) SetBody(body []byte) {
+	c.res.body = body
+}
+
 // JSON writes a JSON response with the given status code and object.
 func (c *Context) JSON(code int, obj interface{}) {
 	c.res.setStatus(code)
