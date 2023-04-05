@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 )
 
-// response Declaring the response structure that will be used to hold HTTP response data.
+// response Declaring the response structure that will be used to hold HTTP response body.
 type response struct {
 	originReq   *http.Request       // A pointer to an HTTP request.
 	originRes   http.ResponseWriter // An HTTP response writer.
 	statusCode  int                 // The status code of the HTTP response (e.g. 200, 404, 500, etc.).
 	cookies     cookiesMap          // An array of cookies to be sent with the HTTP response.
-	data        []byte              // The response data to be sent.
+	body        []byte              // The response body to be sent.
 	redirectUrl string              // The URL to redirect to.
 	fileUrl     string              // The file to send.
 }
@@ -26,7 +26,7 @@ func newResponse(req *http.Request, res http.ResponseWriter) *response {
 		originRes:   res,
 		statusCode:  http.StatusNotFound,
 		cookies:     cookiesMap{},
-		data:        nil,
+		body:        nil,
 		redirectUrl: "",
 	}
 }
@@ -59,15 +59,15 @@ func (r *response) xml(obj interface{}) error {
 	return nil
 }
 
-// text sets plain text as the response data.
+// text sets plain text as the response body.
 func (r *response) text(text string) {
 	r.originRes.Header().Set("Content-Type", "text/plain")
 	r.raw([]byte(text))
 }
 
-// raw sets the response data directly.
+// raw sets the response body directly.
 func (r *response) raw(data []byte) {
-	r.data = data
+	r.body = data
 }
 
 // redirect sets a redirect URL.
@@ -125,7 +125,7 @@ func (r *response) flush() {
 		http.Redirect(r.originRes, r.originReq, r.redirectUrl, r.statusCode)
 	} else {
 		r.originRes.WriteHeader(r.statusCode)
-		_, err := r.originRes.Write(r.data)
+		_, err := r.originRes.Write(r.body)
 		if err != nil {
 			return
 		}

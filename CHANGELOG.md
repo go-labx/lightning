@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.5] - Apr 5, 2023
+
+### Added
+
+- context expose Body() / SetBody([]byte body) method
+
 ## [0.1.4] - Apr 5, 2023
 
 ### Fixed
