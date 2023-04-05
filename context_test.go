@@ -520,8 +520,8 @@ func TestJSON(t *testing.T) {
 	}
 
 	expectedBody := `{"message":"hello world"}`
-	if string(ctx.res.data) != expectedBody {
-		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.data))
+	if string(ctx.res.body) != expectedBody {
+		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.body))
 	}
 }
 
@@ -545,8 +545,8 @@ func TestText(t *testing.T) {
 	}
 
 	expectedBody := "hello world"
-	if string(ctx.res.data) != expectedBody {
-		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.data))
+	if string(ctx.res.body) != expectedBody {
+		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.body))
 	}
 }
 

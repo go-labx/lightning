@@ -29,8 +29,8 @@ func TestNewResponse(t *testing.T) {
 		t.Errorf("Expected cookies to be empty, but got %v", resp.cookies)
 	}
 
-	if resp.data != nil {
-		t.Errorf("Expected data to be nil, but got %v", resp.data)
+	if resp.body != nil {
+		t.Errorf("Expected data to be nil, but got %v", resp.body)
 	}
 
 	if resp.redirectUrl != "" {
