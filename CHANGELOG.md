@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.4] - Apr 5, 2023
+
+### Fixed
+
+- fix route register
+
+## [0.1.3] - Apr 3, 2023
+
+### Other
+
+- chore: republish 
+
 ## [0.1.2] - Apr 3, 2023
 
 ### Changed

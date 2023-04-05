@@ -55,7 +55,9 @@ func (app *Application) Use(middlewares ...Middleware) {
 // to form a single MiddlewareFunc, and then adds it to the router.
 func (app *Application) AddRoute(method string, pattern string, handlers []HandlerFunc) {
 	app.Logger.Debug("register route %s\t-> %s", method, pattern)
-	allHandlers := append(app.middlewares, handlers...)
+	allHandlers := make([]HandlerFunc, 0)
+	allHandlers = append(allHandlers, app.middlewares...)
+	allHandlers = append(allHandlers, handlers...)
 
 	app.router.addRoute(method, pattern, allHandlers)
 }
@@ -111,6 +113,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	ctx, err := NewContext(w, req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 	defer ctx.flushResponse()
 

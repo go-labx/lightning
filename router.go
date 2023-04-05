@@ -24,7 +24,7 @@ func newTrieNode() *trieNode {
 	return &trieNode{
 		children: make(map[string]*trieNode),
 		isEnd:    false,
-		handlers: []HandlerFunc{},
+		handlers: make([]HandlerFunc, 0),
 		params:   make(map[string]int),
 		wildcard: "",
 	}
