@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"encoding/json"
+	"github.com/go-playground/validator/v10"
 	"net/http"
 )
 
@@ -66,6 +67,31 @@ func (c *Context) JSONBody(v interface{}) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (c *Context) Bind(v interface{}) error {
+	err := json.Unmarshal(c.req.rawBody, v)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// use a single instance of Validate, it caches struct info
+var validate = validator.New()
+
+func (c *Context) BindAndValidate(v interface{}) error {
+	err := c.Bind(v)
+	if err != nil {
+		return err
+	}
+
+	err = validate.Struct(v)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
