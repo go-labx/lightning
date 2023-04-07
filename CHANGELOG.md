@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.0] - Apr 7, 2023
+
+### Added
+
+- context support Bind and BindAndValidate method
+
 ## [0.1.5] - Apr 5, 2023
 
 ### Added
