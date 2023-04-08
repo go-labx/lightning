@@ -2,19 +2,23 @@ package lightning
 
 import (
 	"encoding/json"
-	"github.com/go-playground/validator/v10"
 	"net/http"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Context represents the context of an HTTP request/response.
 type Context struct {
-	req      *request
-	res      *response
-	data     contextData
-	handlers []HandlerFunc
-	index    int
-	Method   string // HTTP method of the originReq
-	Path     string // URL path of the originReq
+	Req       *http.Request
+	Res       http.ResponseWriter
+	req       *request
+	res       *response
+	data      contextData
+	handlers  []HandlerFunc
+	index     int
+	Method    string // HTTP method of the originReq
+	Path      string // URL path of the originReq
+	skipFlush bool
 }
 
 // NewContext creates a new context object with the given HTTP response writer and req.
@@ -25,16 +29,24 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	}
 	response := newResponse(req, writer)
 	ctx := &Context{
-		req:      request,
-		res:      response,
-		data:     contextData{},
-		handlers: []HandlerFunc{},
-		index:    -1,
-		Method:   request.method,
-		Path:     request.path,
+		Req:       req,
+		Res:       writer,
+		req:       request,
+		res:       response,
+		data:      contextData{},
+		handlers:  []HandlerFunc{},
+		index:     -1,
+		Method:    request.method,
+		Path:      request.path,
+		skipFlush: false,
 	}
 
 	return ctx, nil
+}
+
+// SkipFlush sets the skipFlush flag to true, which prevents the response buffer from being flushed.
+func (c *Context) SkipFlush() {
+	c.skipFlush = true
 }
 
 // Next calls the next middleware function in the chain.
@@ -48,7 +60,9 @@ func (c *Context) Next() {
 
 // flushResponse flushes the response buffer.
 func (c *Context) flushResponse() {
-	c.res.flush()
+	if !c.skipFlush {
+		c.res.flush()
+	}
 }
 
 // RawBody returns the raw origin request body.
