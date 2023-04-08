@@ -2,8 +2,9 @@ package lightning
 
 import (
 	"encoding/json"
-	"github.com/go-playground/validator/v10"
 	"net/http"
+
+	"github.com/go-playground/validator/v10"
 )
 
 // Context represents the context of an HTTP request/response.
@@ -43,6 +44,7 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	return ctx, nil
 }
 
+// SkipFlush sets the skipFlush flag to true, which prevents the response buffer from being flushed.
 func (c *Context) SkipFlush() {
 	c.skipFlush = true
 }
