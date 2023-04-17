@@ -42,7 +42,7 @@ func (r *response) json(obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	r.originRes.Header().Set("Content-Type", "application/json")
+	r.originRes.Header().Set(HeaderContentType, MIMEApplicationJSON)
 
 	r.raw(encodeData)
 	return nil
@@ -54,14 +54,14 @@ func (r *response) xml(obj interface{}) error {
 	if err != nil {
 		return err
 	}
-	r.originRes.Header().Set("Content-Type", "application/xml")
+	r.originRes.Header().Set(HeaderContentType, MIMEApplicationXML)
 	r.raw(encodeData)
 	return nil
 }
 
 // text sets plain text as the response body.
 func (r *response) text(text string) {
-	r.originRes.Header().Set("Content-Type", "text/plain")
+	r.originRes.Header().Set(HeaderContentType, MIMETextPlain)
 	r.raw([]byte(text))
 }
 
@@ -109,7 +109,7 @@ func (r *response) delHeader(key string) {
 // sendFile sends the file as an attachment.
 func (r *response) sendFile() {
 	base := filepath.Base(r.fileUrl)
-	r.originRes.Header().Set("Content-Disposition", "attachment; filename="+base)
+	r.originRes.Header().Set(HeaderContentDisposition, "attachment; filename="+base)
 	http.ServeFile(r.originRes, r.originReq, r.fileUrl)
 }
 

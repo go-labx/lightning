@@ -72,20 +72,16 @@ func (c *Context) RawBody() []byte {
 
 // StringBody returns the origin request body as a string.
 func (c *Context) StringBody() string {
-	return string(c.req.rawBody)
+	return string(c.RawBody())
 }
 
 // JSONBody parses the origin request body as JSON and stores the result in v.
 func (c *Context) JSONBody(v interface{}) error {
-	err := json.Unmarshal(c.req.rawBody, v)
-	if err != nil {
-		return err
-	}
-	return nil
+	return c.Bind(v)
 }
 
 func (c *Context) Bind(v interface{}) error {
-	err := json.Unmarshal(c.req.rawBody, v)
+	err := json.Unmarshal(c.RawBody(), v)
 	if err != nil {
 		return err
 	}
