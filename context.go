@@ -47,8 +47,8 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	return ctx, nil
 }
 
-// flushResponse flushes the response buffer.
-func (c *Context) flushResponse() {
+// flush flushes the response buffer.
+func (c *Context) flush() {
 	if !c.skipFlush {
 		c.res.flush()
 	}

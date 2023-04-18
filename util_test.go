@@ -112,7 +112,7 @@ func TestDefaultNotFound(t *testing.T) {
 
 	// Call the defaultNotFound function
 	defaultNotFound(ctx)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Verify that the response status code is 404
 	if w.Code != http.StatusNotFound {
@@ -134,7 +134,7 @@ func TestDefaultInternalServerError(t *testing.T) {
 
 	// Call the defaultInternalServerError function
 	defaultInternalServerError(ctx)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Verify that the response status code is 500
 	if w.Code != http.StatusInternalServerError {

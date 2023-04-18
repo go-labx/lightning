@@ -62,8 +62,8 @@ func TestFlushResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Call the flushResponse function
-	ctx.flushResponse()
+	// Call the flush function
+	ctx.flush()
 
 	// Check that the response writer was flushed correctly
 	if w.Code != http.StatusNotFound {
@@ -455,7 +455,7 @@ func TestSetCookie(t *testing.T) {
 
 	// Call the SetCookie function
 	ctx.SetCookie("test", "value")
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the cookie was set correctly
 	cookies := w.Result().Cookies()
@@ -485,7 +485,7 @@ func TestSetCustomCookie(t *testing.T) {
 	// Call the SetCustomCookie function
 	cookie := &http.Cookie{Name: "test", Value: "value"}
 	ctx.SetCustomCookie(cookie)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the cookie was set correctly
 	cookies := w.Result().Cookies()
@@ -513,7 +513,7 @@ func TestJSON(t *testing.T) {
 	}
 
 	ctx.JSON(200, map[string]string{"message": "hello world"})
-	ctx.flushResponse()
+	ctx.flush()
 
 	if ctx.Status() != 200 {
 		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
@@ -538,7 +538,7 @@ func TestText(t *testing.T) {
 	}
 
 	ctx.Text(200, "hello world")
-	ctx.flushResponse()
+	ctx.flush()
 
 	if ctx.Status() != 200 {
 		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
@@ -611,7 +611,7 @@ func TestContext_Redirect(t *testing.T) {
 	// Call the Redirect method with a test URL and status code
 	redirectUrl := "https://example.com"
 	ctx.Redirect(http.StatusMovedPermanently, redirectUrl)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Verify that the response status code and location header are set correctly
 	if rr.Result().StatusCode != http.StatusMovedPermanently {
@@ -686,7 +686,7 @@ func TestContext_Success(t *testing.T) {
 	// Call the Success method with some test data
 	testData := map[string]string{"foo": "bar"}
 	ctx.Success(testData)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
@@ -716,7 +716,7 @@ func TestContextFail(t *testing.T) {
 
 	// Call the Fail method with a custom code and message
 	ctx.Fail(500, "Internal Server Error")
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the response status code and body are correct
 	if w.Code != 200 {

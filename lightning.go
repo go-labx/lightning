@@ -157,7 +157,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer ctx.flushResponse()
+	defer ctx.flush()
 
 	// Find the matching route and set the handlers and paramsMap in the context
 	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
