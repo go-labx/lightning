@@ -25,7 +25,7 @@ func main() {
 
 	app.Post("/post", func(ctx *lightning.Context) {
 		user := &User{}
-		err := ctx.Bind(user)
+		err := ctx.JSONBody(user)
 		if err != nil {
 			ctx.Fail(-1, err.Error())
 			return

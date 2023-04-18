@@ -21,7 +21,7 @@ func main() {
 		var user = &User{}
 
 		// Bind and validate the request body to the User struct
-		if err := ctx.BindAndValidate(user); err != nil {
+		if err := ctx.JSONBodyWithValidate(user); err != nil {
 			// If there is an error, return it as JSON
 			ctx.JSON(http.StatusOK, lightning.Map{
 				"err": err.Error(),

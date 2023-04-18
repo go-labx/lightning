@@ -64,6 +64,7 @@ func (c *Context) setParams(params map[string]string) {
 	c.req.setParams(params)
 }
 
+// setApp sets the application instance for the context.
 func (c *Context) setApp(app *Application) {
 	c.App = app
 }
@@ -94,11 +95,12 @@ func (c *Context) StringBody() string {
 
 // JSONBody parses the origin request body as JSON and stores the result in v.
 func (c *Context) JSONBody(v interface{}) error {
-	return c.Bind(v)
-}
+	decode := json.Unmarshal
+	if c.App != nil && c.App.Config.JSONDecoder != nil {
+		decode = c.App.Config.JSONDecoder
+	}
 
-func (c *Context) Bind(v interface{}) error {
-	err := json.Unmarshal(c.RawBody(), v)
+	err := decode(c.RawBody(), v)
 	if err != nil {
 		return err
 	}
@@ -108,8 +110,8 @@ func (c *Context) Bind(v interface{}) error {
 // use a single instance of Validate, it caches struct info
 var validate = validator.New()
 
-func (c *Context) BindAndValidate(v interface{}) error {
-	err := c.Bind(v)
+func (c *Context) JSONBodyWithValidate(v interface{}) error {
+	err := c.JSONBody(v)
 	if err != nil {
 		return err
 	}
