@@ -7,14 +7,14 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp(&lightning.Config{
-		NotFoundHandler: func(ctx *lightning.Context) {
-			ctx.Text(404, "custom not found")
+	app := lightning.NewApp(
+		&lightning.Config{
+			AppName: "demo",
 		},
-	})
+	)
 
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, map[string]string{
+		ctx.JSON(http.StatusOK, lightning.Map{
 			"message": "pong",
 		})
 	})

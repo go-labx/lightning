@@ -695,7 +695,7 @@ func TestContext_Success(t *testing.T) {
 	}
 
 	// Check the response body
-	expected := `{"code":0,"data":{"foo":"bar"},"msg":"ok"}`
+	expected := `{"code":0,"data":{"foo":"bar"},"message":"ok"}`
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
@@ -722,7 +722,7 @@ func TestContextFail(t *testing.T) {
 	if w.Code != 200 {
 		t.Errorf("expected status code 200, got %d", w.Code)
 	}
-	expectedBody := `{"code":500,"msg":"Internal Server Error"}`
+	expectedBody := `{"code":500,"message":"Internal Server Error"}`
 	if w.Body.String() != expectedBody {
 		t.Errorf("expected body %q, got %q", expectedBody, w.Body.String())
 	}
