@@ -84,14 +84,17 @@ func (r *request) cookies() []*http.Cookie {
 	return r.originReq.Cookies()
 }
 
+// userAgent returns the user agent header value of the request.
 func (r *request) userAgent() string {
 	return r.header("user-agent")
 }
 
+// referer returns the referer header value of the request.
 func (r *request) referer() string {
 	return r.header("referer")
 }
 
+// remoteAddr returns the remote address of the request.
 func (r *request) remoteAddr() string {
 	ip := r.header("x-real-ip")
 	if ip == "" {
