@@ -9,7 +9,9 @@ import (
 func TestRecovery(t *testing.T) {
 	app := NewApp()
 
-	app.Use(Recovery())
+	app.Use(Recovery(func(ctx *Context) {
+		ctx.Text(500, "Internal Server Error")
+	}))
 
 	app.Get("/", func(ctx *Context) {
 		panic("test panic")
