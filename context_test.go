@@ -36,6 +36,29 @@ func TestNewContextWithError(t *testing.T) {
 	}
 }
 
+func TestSkipFlush(t *testing.T) {
+	// Create a new request and response recorder
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+
+	// Create a new context with the request and response recorder
+	ctx, err := NewContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Call the SkipFlush function
+	ctx.SkipFlush()
+
+	// Check if the skipFlush flag is set to true
+	if !ctx.skipFlush {
+		t.Errorf("SkipFlush did not set skipFlush flag to true")
+	}
+}
+
 func TestContext_Next(t *testing.T) {
 	// Create a new context with a mock handler function
 	ctx := &Context{
@@ -597,23 +620,45 @@ func TestText(t *testing.T) {
 	}
 }
 
-//func TestFile(t *testing.T) {
-//	req, err := http.NewRequest("GET", "/test", nil)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rr := httptest.NewRecorder()
-//	ctx, err := NewContext(rr, req)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	ctx.File("test.txt")
-//	if status := rr.Code; status != http.StatusOK {
-//		t.Errorf("handler returned wrong status code: got %v want %v",
-//			status, http.StatusOK)
-//	}
-//}
+func TestContext_XML(t *testing.T) {
+	// Create a new context
+	req := httptest.NewRequest("GET", "/xml", nil)
+	res := httptest.NewRecorder()
+	ctx, err := NewContext(res, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a test object
+	type person struct {
+		Name string `xml:"name"`
+		Age  int    `xml:"age"`
+	}
+	obj := &person{
+		Name: "John",
+		Age:  30,
+	}
+
+	// Call the XML function with the test object
+	ctx.XML(http.StatusOK, obj)
+	ctx.flush()
+
+	// Check the response headers
+	if res.Header().Get(HeaderContentType) != MIMEApplicationXML {
+		t.Errorf("Expected Content-Type header to be %s, but got %s", MIMEApplicationXML, res.Header().Get(HeaderContentType))
+	}
+
+	// Check the response status code
+	if res.Result().StatusCode != http.StatusOK {
+		t.Errorf("Expected status code to be %d, but got %d", http.StatusOK, res.Result().StatusCode)
+	}
+
+	// Check the response body
+	expectedBody := `<person><name>John</name><age>30</age></person>`
+	if res.Body.String() != expectedBody {
+		t.Errorf("Expected response body to be %s, but got %s", expectedBody, res.Body.String())
+	}
+}
 
 func TestContext_GetData(t *testing.T) {
 	req, err := http.NewRequest("GET", "/test", nil)
