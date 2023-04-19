@@ -26,11 +26,10 @@ type Application struct {
 var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
 type Config struct {
-	AppName                        string
-	JSONEncoder                    JSONMarshal
-	JSONDecoder                    JSONUnmarshal
-	NotFoundHandler                HandlerFunc // Handler function for 404 Not Found error
-	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
+	AppName         string
+	JSONEncoder     JSONMarshal
+	JSONDecoder     JSONUnmarshal
+	NotFoundHandler HandlerFunc // Handler function for 404 Not Found error
 }
 
 func (c *Config) merge(configs ...*Config) *Config {
@@ -55,11 +54,10 @@ func (c *Config) merge(configs ...*Config) *Config {
 
 func defaultConfig() *Config {
 	return &Config{
-		AppName:                        "lightning-app",
-		JSONEncoder:                    json.Marshal,
-		JSONDecoder:                    json.Unmarshal,
-		NotFoundHandler:                defaultNotFound,
-		InternalServerErrorHandlerFunc: defaultInternalServerError,
+		AppName:         "lightning-app",
+		JSONEncoder:     json.Marshal,
+		JSONDecoder:     json.Unmarshal,
+		NotFoundHandler: defaultNotFound,
 	}
 }
 
@@ -74,6 +72,8 @@ func NewApp(c ...*Config) *Application {
 		middlewares: make([]HandlerFunc, 0),
 		Logger:      logger,
 	}
+
+	app.Use(Recovery())
 
 	return app
 }
