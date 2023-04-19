@@ -93,8 +93,11 @@ func (c *Context) StringBody() string {
 	return string(c.RawBody())
 }
 
+// use a single instance of Validate, it caches struct info
+var validate = validator.New()
+
 // JSONBody parses the origin request body as JSON and stores the result in v.
-func (c *Context) JSONBody(v interface{}) error {
+func (c *Context) JSONBody(v interface{}, valid ...bool) error {
 	decode := json.Unmarshal
 	if c.App != nil && c.App.Config.JSONDecoder != nil {
 		decode = c.App.Config.JSONDecoder
@@ -104,23 +107,12 @@ func (c *Context) JSONBody(v interface{}) error {
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-// use a single instance of Validate, it caches struct info
-var validate = validator.New()
-
-func (c *Context) JSONBodyWithValidate(v interface{}) error {
-	err := c.JSONBody(v)
-	if err != nil {
-		return err
+	if len(valid) > 0 && valid[0] {
+		err = validate.Struct(v)
+		if err != nil {
+			return err
+		}
 	}
-
-	err = validate.Struct(v)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }
 
