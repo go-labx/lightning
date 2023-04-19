@@ -27,6 +27,15 @@ func TestNewContext(t *testing.T) {
 	}
 }
 
+func TestNewContextWithError(t *testing.T) {
+	req := httptest.NewRequest("GET", "/path", &errorReader{})
+	rr := httptest.NewRecorder()
+	_, err := NewContext(rr, req)
+	if err == nil {
+		t.Error("Expected error, but got nil")
+	}
+}
+
 func TestContext_Next(t *testing.T) {
 	// Create a new context with a mock handler function
 	ctx := &Context{
