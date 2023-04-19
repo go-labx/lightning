@@ -73,8 +73,6 @@ func NewApp(c ...*Config) *Application {
 		Logger:      logger,
 	}
 
-	app.Use(Recovery())
-
 	return app
 }
 
