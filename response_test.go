@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -54,7 +56,7 @@ func TestSetStatus(t *testing.T) {
 	}
 }
 
-func TestResponseJson(t *testing.T) {
+func TestSetBody(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://example.com", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -62,72 +64,11 @@ func TestResponseJson(t *testing.T) {
 	res := httptest.NewRecorder()
 
 	r := newResponse(req, res)
-	obj := map[string]string{"foo": "bar"}
+	body := []byte("test data")
+	r.setBody(body)
 
-	r.setStatus(http.StatusOK)
-	if err := r.json(obj); err != nil {
-		t.Fatal(err)
-	}
-	r.flush()
-
-	if res.Code != http.StatusOK {
-		t.Errorf("expected status code %d, got %d", http.StatusOK, res.Code)
-	}
-
-	expectedContentType := "application/json"
-	if res.Header().Get("Content-Type") != expectedContentType {
-		t.Errorf("expected content type %q, got %q", expectedContentType, res.Header().Get("Content-Type"))
-	}
-
-	expectedBody := `{"foo":"bar"}`
-	if res.Body.String() != expectedBody {
-		t.Errorf("expected body %q, got %q", expectedBody, res.Body.String())
-	}
-}
-
-func TestResponse_Text(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-
-	r := newResponse(req, res)
-	text := "hello world"
-
-	r.setStatus(http.StatusOK)
-	r.text(text)
-	r.flush()
-
-	if res.Code != http.StatusOK {
-		t.Errorf("expected status code %d, got %d", http.StatusOK, res.Code)
-	}
-
-	expectedContentType := "text/plain"
-	if res.Header().Get("Content-Type") != expectedContentType {
-		t.Errorf("expected content type %q, got %q", expectedContentType, res.Header().Get("Content-Type"))
-	}
-
-	expectedBody := text
-	if res.Body.String() != expectedBody {
-		t.Errorf("expected body %q, got %q", expectedBody, res.Body.String())
-	}
-}
-
-func TestResponseRaw(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-
-	resp := newResponse(req, res)
-	data := []byte("test data")
-	resp.raw(data)
-	resp.flush()
-
-	if !bytes.Equal(res.Body.Bytes(), data) {
-		t.Errorf("expected response body to be %v, but got %v", data, res.Body.Bytes())
+	if !bytes.Equal(r.body, body) {
+		t.Errorf("expected body to be %v, but got %v", body, r.body)
 	}
 }
 
@@ -146,6 +87,31 @@ func TestResponse_Redirect(t *testing.T) {
 
 	if w.Header().Get("Location") != "http://example.com/bar" {
 		t.Errorf("expected Location header %q, got %q", "http://example.com/bar", w.Header().Get("Location"))
+	}
+}
+
+func TestResponse_File(t *testing.T) {
+	// create a temporary file
+	file, err := os.CreateTemp("", "testfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	// set the file path using the file method
+	resp := newResponse(nil, nil)
+	err = resp.file(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// check if the fileUrl field is set to the correct absolute path
+	absPath, err := filepath.Abs(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.fileUrl != absPath {
+		t.Errorf("fileUrl field is %s, expected %s", resp.fileUrl, absPath)
 	}
 }
 
@@ -200,5 +166,44 @@ func TestResponse_DelHeader(t *testing.T) {
 
 	if res.Header().Get("X-Test-Header") != "" {
 		t.Errorf("Expected header X-Test-Header to be set to test-value, but got %s", res.Header().Get("X-Test-Header"))
+	}
+}
+
+func TestSendFile(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/file.txt", nil)
+	res := httptest.NewRecorder()
+
+	// Create a temporary file to serve
+	file, err := os.CreateTemp("", "testfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+	_, err = file.WriteString("test content")
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp := newResponse(req, res)
+	err = resp.file(file.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.sendFile()
+
+	// Check that the Content-Disposition header was set correctly
+	expectedHeader := "attachment; filename=" + filepath.Base(file.Name())
+	if res.Header().Get(HeaderContentDisposition) != expectedHeader {
+		t.Errorf("Expected Content-Disposition header %q, got %q", expectedHeader, res.Header().Get(HeaderContentDisposition))
+	}
+
+	// Check that the file was served
+	expectedBody := "test content"
+	if res.Body.String() != expectedBody {
+		t.Errorf("Expected response body %q, got %q", expectedBody, res.Body.String())
 	}
 }

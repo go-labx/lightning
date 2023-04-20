@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.4.0] - Apr 20, 2023
+
+### Added
+
+- JSON serialization supports customization
+
+### Changed
+
+- `JSONBody(v interface{}, valid ...bool)` method supports parameter validation
+- `recovery` middleware supports custom handler
+- `NewApp` supports custom configuration
+
+### Removed
+
+- remove `ctx.Bind` and `ctx.BindAndValidate` method
+
+### Other
+
+- update examples
+
 ## [0.3.0] - Apr 8, 2023
 
 ### Added

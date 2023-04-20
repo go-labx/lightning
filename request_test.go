@@ -1,10 +1,26 @@
 package lightning
 
 import (
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 )
+
+type errorReader struct{}
+
+func (r *errorReader) Read(p []byte) (n int, err error) {
+	return 0, errors.New("read error")
+}
+
+func TestNewRequestWithBodyReadError(t *testing.T) {
+	req := httptest.NewRequest("GET", "/path", &errorReader{})
+	_, err := newRequest(req)
+	if err == nil {
+		t.Error("Expected error, but got nil")
+	}
+}
 
 func TestNewRequest(t *testing.T) {
 	type args struct {

@@ -1,8 +1,6 @@
 package lightning
 
 import (
-	"encoding/json"
-	"encoding/xml"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -36,38 +34,9 @@ func (r *response) setStatus(code int) {
 	r.statusCode = code
 }
 
-// json marshals a json object and sets the appropriate headers.
-func (r *response) json(obj interface{}) error {
-	encodeData, err := json.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	r.originRes.Header().Set("Content-Type", "application/json")
-
-	r.raw(encodeData)
-	return nil
-}
-
-// xml marshals a xml object and sets the appropriate headers.
-func (r *response) xml(obj interface{}) error {
-	encodeData, err := xml.Marshal(obj)
-	if err != nil {
-		return err
-	}
-	r.originRes.Header().Set("Content-Type", "application/xml")
-	r.raw(encodeData)
-	return nil
-}
-
-// text sets plain text as the response body.
-func (r *response) text(text string) {
-	r.originRes.Header().Set("Content-Type", "text/plain")
-	r.raw([]byte(text))
-}
-
-// raw sets the response body directly.
-func (r *response) raw(data []byte) {
-	r.body = data
+// setBody sets the response body to be sent.
+func (r *response) setBody(body []byte) {
+	r.body = body
 }
 
 // redirect sets a redirect URL.
@@ -109,7 +78,7 @@ func (r *response) delHeader(key string) {
 // sendFile sends the file as an attachment.
 func (r *response) sendFile() {
 	base := filepath.Base(r.fileUrl)
-	r.originRes.Header().Set("Content-Disposition", "attachment; filename="+base)
+	r.originRes.Header().Set(HeaderContentDisposition, "attachment; filename="+base)
 	http.ServeFile(r.originRes, r.originReq, r.fileUrl)
 }
 

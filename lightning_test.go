@@ -22,16 +22,6 @@ func TestDefaultApp(t *testing.T) {
 		t.Errorf("Expected Logger field to not be nil")
 	}
 
-	// Assert that the NotFoundHandler field is not nil
-	if app.NotFoundHandler == nil {
-		t.Errorf("Expected NotFoundHandler field to not be nil")
-	}
-
-	// Assert that the InternalServerErrorHandlerFunc field is not nil
-	if app.InternalServerErrorHandlerFunc == nil {
-		t.Errorf("Expected InternalServerErrorHandlerFunc field to not be nil")
-	}
-
 	// Assert that the middlewares field has the expected length
 	expectedMiddlewareLength := 2
 	if len(app.middlewares) != expectedMiddlewareLength {

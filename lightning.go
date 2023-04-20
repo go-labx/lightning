@@ -1,8 +1,11 @@
 package lightning
 
 import (
-	"github.com/go-labx/lightlog"
+	"encoding/json"
 	"net/http"
+	"reflect"
+
+	"github.com/go-labx/lightlog"
 )
 
 // HandlerFunc is a function type that represents the actual handler function for a route.
@@ -13,24 +16,61 @@ type Middleware = HandlerFunc
 type Map map[string]any
 
 type Application struct {
+	Config      *Config
 	router      *router
 	middlewares []HandlerFunc
 
-	Logger                         *lightlog.ConsoleLogger
-	NotFoundHandler                HandlerFunc // Handler function for 404 Not Found error
-	InternalServerErrorHandlerFunc HandlerFunc // Handler function for 500 Internal Server Error
+	Logger *lightlog.ConsoleLogger
 }
 
 var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
+type Config struct {
+	AppName         string
+	JSONEncoder     JSONMarshal
+	JSONDecoder     JSONUnmarshal
+	NotFoundHandler HandlerFunc // Handler function for 404 Not Found error
+}
+
+func (c *Config) merge(configs ...*Config) *Config {
+	value := reflect.ValueOf(c).Elem()
+
+	// iterate over all the configs passed in
+	for _, config := range configs {
+		v := reflect.ValueOf(config).Elem()
+		t := reflect.TypeOf(config).Elem()
+
+		// iterate over all the fields in the config
+		for i := 0; i < t.NumField(); i++ {
+			// if the field is not zero, set the value of the field in the current config to the value of the field in the passed in config
+			if !v.Field(i).IsZero() {
+				value.Field(i).Set(v.Field(i))
+			}
+		}
+	}
+
+	return c
+}
+
+func defaultConfig() *Config {
+	return &Config{
+		AppName:         "lightning-app",
+		JSONEncoder:     json.Marshal,
+		JSONDecoder:     json.Unmarshal,
+		NotFoundHandler: defaultNotFound,
+	}
+}
+
 // NewApp returns a new instance of the Application struct.
-func NewApp() *Application {
+func NewApp(c ...*Config) *Application {
+	config := defaultConfig()
+	config = config.merge(c...)
+
 	app := &Application{
-		router:                         newRouter(),
-		middlewares:                    make([]HandlerFunc, 0),
-		Logger:                         logger,
-		NotFoundHandler:                defaultNotFound,
-		InternalServerErrorHandlerFunc: defaultInternalServerError,
+		Config:      config,
+		router:      newRouter(),
+		middlewares: make([]HandlerFunc, 0),
+		Logger:      logger,
 	}
 
 	return app
@@ -115,7 +155,7 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	defer ctx.flushResponse()
+	defer ctx.flush()
 
 	// Find the matching route and set the handlers and paramsMap in the context
 	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
@@ -124,10 +164,11 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// By appending the 404 handler function to the handlers slice,
 	// we ensure that the middleware chain will always be executed, even if no matching route is found.
 	if handlers == nil {
-		handlers = append(app.middlewares, app.NotFoundHandler)
+		handlers = append(app.middlewares, app.Config.NotFoundHandler)
 	}
 	ctx.setHandlers(handlers)
 	ctx.setParams(params)
+	ctx.setApp(app)
 
 	// Execute the middleware chain
 	ctx.Next()

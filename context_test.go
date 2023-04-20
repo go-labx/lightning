@@ -27,6 +27,38 @@ func TestNewContext(t *testing.T) {
 	}
 }
 
+func TestNewContextWithError(t *testing.T) {
+	req := httptest.NewRequest("GET", "/path", &errorReader{})
+	rr := httptest.NewRecorder()
+	_, err := NewContext(rr, req)
+	if err == nil {
+		t.Error("Expected error, but got nil")
+	}
+}
+
+func TestSkipFlush(t *testing.T) {
+	// Create a new request and response recorder
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rr := httptest.NewRecorder()
+
+	// Create a new context with the request and response recorder
+	ctx, err := NewContext(rr, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Call the SkipFlush function
+	ctx.SkipFlush()
+
+	// Check if the skipFlush flag is set to true
+	if !ctx.skipFlush {
+		t.Errorf("SkipFlush did not set skipFlush flag to true")
+	}
+}
+
 func TestContext_Next(t *testing.T) {
 	// Create a new context with a mock handler function
 	ctx := &Context{
@@ -47,7 +79,7 @@ func TestContext_Next(t *testing.T) {
 	}
 }
 
-func TestFlushResponse(t *testing.T) {
+func TestContext_Flush(t *testing.T) {
 	req, err := http.NewRequest("GET", "/test", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -62,8 +94,8 @@ func TestFlushResponse(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Call the flushResponse function
-	ctx.flushResponse()
+	// Call the flush function
+	ctx.flush()
 
 	// Check that the response writer was flushed correctly
 	if w.Code != http.StatusNotFound {
@@ -112,40 +144,46 @@ func TestStringBody(t *testing.T) {
 }
 
 func TestJSONBody(t *testing.T) {
-	// Create a new request with a JSON body
-	reqBody := []byte(`{"name": "John", "age": 30}`)
-	req, err := http.NewRequest("POST", "/users", bytes.NewBuffer(reqBody))
+	// Create a new context with a mock request and response
+	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"name": "John", "age": 30}`))
+	res := httptest.NewRecorder()
+	ctx, err := NewContext(res, req)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Error creating context: %v", err)
 	}
 
-	// Create a new context with the request and response writer
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
+	// Define a struct to unmarshal the JSON into
+	type Person struct {
+		Name string `json:"name" validate:"required"`
+		Age  int    `json:"age" validate:"gte=0"`
+	}
+	var p Person
+
+	// Call the JSONBody function with the struct and validation flag
+	err = ctx.JSONBody(&p, true)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Error parsing JSON body: %v", err)
 	}
 
-	// Parse the JSON body into a struct
-	var user struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
+	// Check that the struct was populated correctly
+	if p.Name != "John" {
+		t.Errorf("Expected name to be 'John', got '%s'", p.Name)
 	}
-	err = ctx.JSONBody(&user)
-	if err != nil {
-		t.Fatal(err)
+	if p.Age != 30 {
+		t.Errorf("Expected age to be 30, got %d", p.Age)
 	}
 
-	// Assert that the parsed JSON object matches the expected output
-	expectedUser := struct {
-		Name string `json:"name"`
-		Age  int    `json:"age"`
-	}{
-		Name: "John",
-		Age:  30,
+	// Check that the function returns an error when given invalid JSON
+	req = httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"name": "John", "age": "thirty"}`))
+	res = httptest.NewRecorder()
+	ctx, err = NewContext(res, req)
+	if err != nil {
+		t.Fatalf("Error creating context: %v", err)
 	}
-	if !reflect.DeepEqual(user, expectedUser) {
-		t.Errorf("got %v, want %v", user, expectedUser)
+
+	err = ctx.JSONBody(&p, true)
+	if err == nil {
+		t.Error("Expected error when parsing invalid JSON")
 	}
 }
 
@@ -455,7 +493,7 @@ func TestSetCookie(t *testing.T) {
 
 	// Call the SetCookie function
 	ctx.SetCookie("test", "value")
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the cookie was set correctly
 	cookies := w.Result().Cookies()
@@ -485,7 +523,7 @@ func TestSetCustomCookie(t *testing.T) {
 	// Call the SetCustomCookie function
 	cookie := &http.Cookie{Name: "test", Value: "value"}
 	ctx.SetCustomCookie(cookie)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the cookie was set correctly
 	cookies := w.Result().Cookies()
@@ -497,6 +535,38 @@ func TestSetCustomCookie(t *testing.T) {
 	}
 	if cookies[0].Value != "value" {
 		t.Errorf("expected cookie value 'value', got '%s'", cookies[0].Value)
+	}
+}
+
+func TestContextBody(t *testing.T) {
+	// create a new context with a response body
+	body := []byte("test body")
+	ctx := &Context{
+		res: &response{
+			body: body,
+		},
+	}
+
+	// call the Body() function and check the result
+	result := ctx.Body()
+	if !bytes.Equal(result, body) {
+		t.Errorf("expected body %v, but got %v", body, result)
+	}
+}
+
+func TestContextSetBody(t *testing.T) {
+	// create a new context
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	res := httptest.NewRecorder()
+	ctx, _ := NewContext(res, req)
+
+	// set the body using SetBody
+	body := []byte("test body")
+	ctx.SetBody(body)
+
+	// check that the body was set correctly
+	if !bytes.Equal(ctx.res.body, body) {
+		t.Errorf("expected body %v, got %v", body, ctx.res.body)
 	}
 }
 
@@ -513,7 +583,7 @@ func TestJSON(t *testing.T) {
 	}
 
 	ctx.JSON(200, map[string]string{"message": "hello world"})
-	ctx.flushResponse()
+	ctx.flush()
 
 	if ctx.Status() != 200 {
 		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
@@ -538,7 +608,7 @@ func TestText(t *testing.T) {
 	}
 
 	ctx.Text(200, "hello world")
-	ctx.flushResponse()
+	ctx.flush()
 
 	if ctx.Status() != 200 {
 		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
@@ -550,23 +620,45 @@ func TestText(t *testing.T) {
 	}
 }
 
-//func TestFile(t *testing.T) {
-//	req, err := http.NewRequest("GET", "/test", nil)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//	rr := httptest.NewRecorder()
-//	ctx, err := NewContext(rr, req)
-//	if err != nil {
-//		t.Fatal(err)
-//	}
-//
-//	ctx.File("test.txt")
-//	if status := rr.Code; status != http.StatusOK {
-//		t.Errorf("handler returned wrong status code: got %v want %v",
-//			status, http.StatusOK)
-//	}
-//}
+func TestContext_XML(t *testing.T) {
+	// Create a new context
+	req := httptest.NewRequest("GET", "/xml", nil)
+	res := httptest.NewRecorder()
+	ctx, err := NewContext(res, req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a test object
+	type person struct {
+		Name string `xml:"name"`
+		Age  int    `xml:"age"`
+	}
+	obj := &person{
+		Name: "John",
+		Age:  30,
+	}
+
+	// Call the XML function with the test object
+	ctx.XML(http.StatusOK, obj)
+	ctx.flush()
+
+	// Check the response headers
+	if res.Header().Get(HeaderContentType) != MIMEApplicationXML {
+		t.Errorf("Expected Content-Type header to be %s, but got %s", MIMEApplicationXML, res.Header().Get(HeaderContentType))
+	}
+
+	// Check the response status code
+	if res.Result().StatusCode != http.StatusOK {
+		t.Errorf("Expected status code to be %d, but got %d", http.StatusOK, res.Result().StatusCode)
+	}
+
+	// Check the response body
+	expectedBody := `<person><name>John</name><age>30</age></person>`
+	if res.Body.String() != expectedBody {
+		t.Errorf("Expected response body to be %s, but got %s", expectedBody, res.Body.String())
+	}
+}
 
 func TestContext_GetData(t *testing.T) {
 	req, err := http.NewRequest("GET", "/test", nil)
@@ -611,7 +703,7 @@ func TestContext_Redirect(t *testing.T) {
 	// Call the Redirect method with a test URL and status code
 	redirectUrl := "https://example.com"
 	ctx.Redirect(http.StatusMovedPermanently, redirectUrl)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Verify that the response status code and location header are set correctly
 	if rr.Result().StatusCode != http.StatusMovedPermanently {
@@ -686,7 +778,7 @@ func TestContext_Success(t *testing.T) {
 	// Call the Success method with some test data
 	testData := map[string]string{"foo": "bar"}
 	ctx.Success(testData)
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check the response status code
 	if status := rr.Code; status != http.StatusOK {
@@ -695,7 +787,7 @@ func TestContext_Success(t *testing.T) {
 	}
 
 	// Check the response body
-	expected := `{"code":0,"data":{"foo":"bar"},"msg":"ok"}`
+	expected := `{"code":0,"data":{"foo":"bar"},"message":"ok"}`
 	if rr.Body.String() != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
@@ -716,13 +808,13 @@ func TestContextFail(t *testing.T) {
 
 	// Call the Fail method with a custom code and message
 	ctx.Fail(500, "Internal Server Error")
-	ctx.flushResponse()
+	ctx.flush()
 
 	// Check that the response status code and body are correct
 	if w.Code != 200 {
 		t.Errorf("expected status code 200, got %d", w.Code)
 	}
-	expectedBody := `{"code":500,"msg":"Internal Server Error"}`
+	expectedBody := `{"code":500,"message":"Internal Server Error"}`
 	if w.Body.String() != expectedBody {
 		t.Errorf("expected body %q, got %q", expectedBody, w.Body.String())
 	}

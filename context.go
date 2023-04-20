@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"net/http"
 
 	"github.com/go-playground/validator/v10"
@@ -9,6 +10,7 @@ import (
 
 // Context represents the context of an HTTP request/response.
 type Context struct {
+	App       *Application
 	Req       *http.Request
 	Res       http.ResponseWriter
 	req       *request
@@ -29,6 +31,7 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	}
 	response := newResponse(req, writer)
 	ctx := &Context{
+		App:       nil,
 		Req:       req,
 		Res:       writer,
 		req:       request,
@@ -42,6 +45,28 @@ func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error)
 	}
 
 	return ctx, nil
+}
+
+// flush flushes the response buffer.
+func (c *Context) flush() {
+	if !c.skipFlush {
+		c.res.flush()
+	}
+}
+
+// setHandlers sets the handlers for the context.
+func (c *Context) setHandlers(handlers []HandlerFunc) {
+	c.handlers = handlers
+}
+
+// setParams sets the URL parameters for the req.
+func (c *Context) setParams(params map[string]string) {
+	c.req.setParams(params)
+}
+
+// setApp sets the application instance for the context.
+func (c *Context) setApp(app *Application) {
+	c.App = app
 }
 
 // SkipFlush sets the skipFlush flag to true, which prevents the response buffer from being flushed.
@@ -58,13 +83,6 @@ func (c *Context) Next() {
 	}
 }
 
-// flushResponse flushes the response buffer.
-func (c *Context) flushResponse() {
-	if !c.skipFlush {
-		c.res.flush()
-	}
-}
-
 // RawBody returns the raw origin request body.
 func (c *Context) RawBody() []byte {
 	return c.req.rawBody
@@ -72,51 +90,30 @@ func (c *Context) RawBody() []byte {
 
 // StringBody returns the origin request body as a string.
 func (c *Context) StringBody() string {
-	return string(c.req.rawBody)
-}
-
-// JSONBody parses the origin request body as JSON and stores the result in v.
-func (c *Context) JSONBody(v interface{}) error {
-	err := json.Unmarshal(c.req.rawBody, v)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (c *Context) Bind(v interface{}) error {
-	err := json.Unmarshal(c.req.rawBody, v)
-	if err != nil {
-		return err
-	}
-	return nil
+	return string(c.RawBody())
 }
 
 // use a single instance of Validate, it caches struct info
 var validate = validator.New()
 
-func (c *Context) BindAndValidate(v interface{}) error {
-	err := c.Bind(v)
+// JSONBody parses the origin request body as JSON and stores the result in v.
+func (c *Context) JSONBody(v interface{}, valid ...bool) error {
+	decode := json.Unmarshal
+	if c.App != nil && c.App.Config.JSONDecoder != nil {
+		decode = c.App.Config.JSONDecoder
+	}
+
+	err := decode(c.RawBody(), v)
 	if err != nil {
 		return err
 	}
-
-	err = validate.Struct(v)
-	if err != nil {
-		return err
+	if len(valid) > 0 && valid[0] {
+		err = validate.Struct(v)
+		if err != nil {
+			return err
+		}
 	}
-
 	return nil
-}
-
-// setHandlers sets the handlers for the context.
-func (c *Context) setHandlers(handlers []HandlerFunc) {
-	c.handlers = handlers
-}
-
-// setParams sets the URL parameters for the req.
-func (c *Context) setParams(params map[string]string) {
-	c.req.setParams(params)
 }
 
 // Param returns the value of a URL parameter for a given key.
@@ -206,34 +203,42 @@ func (c *Context) SetBody(body []byte) {
 
 // JSON writes a JSON response with the given status code and object.
 func (c *Context) JSON(code int, obj interface{}) {
-	c.res.setStatus(code)
-	err := c.res.json(obj)
+	encode := json.Marshal
+	if c.App != nil && c.App.Config.JSONEncoder != nil {
+		encode = c.App.Config.JSONEncoder
+	}
+	encodeData, err := encode(obj)
 	if err != nil {
 		panic(err)
 	}
+
+	c.res.setHeader(HeaderContentType, MIMEApplicationJSON)
+	c.res.setStatus(code)
+	c.res.setBody(encodeData)
 }
 
 // Text writes a plain text response with the given status code and format.
 func (c *Context) Text(code int, text string) {
+	c.res.setHeader(HeaderContentType, MIMETextPlain)
 	c.res.setStatus(code)
-	c.res.text(text)
+	c.res.setBody([]byte(text))
 }
 
 // XML writes an XML response with the given status code and object.
 func (c *Context) XML(code int, obj interface{}) {
-	c.res.setStatus(code)
-	err := c.res.xml(obj)
-	if err != nil {
-		return
-	}
-}
-
-// File writes a file as the response.
-func (c *Context) File(filepath string) {
-	err := c.res.file(filepath)
+	encodeData, err := xml.Marshal(obj)
 	if err != nil {
 		panic(err)
 	}
+
+	c.res.setHeader(HeaderContentType, MIMEApplicationXML)
+	c.res.setStatus(code)
+	c.res.setBody(encodeData)
+}
+
+// File writes a file as the response.
+func (c *Context) File(filepath string) error {
+	return c.res.file(filepath)
 }
 
 // GetData returns the value of a custom data field for the context.
@@ -274,16 +279,16 @@ func (c *Context) RemoteAddr() string {
 // Success writes a successful response with the given data.
 func (c *Context) Success(data interface{}) {
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"code": 0,
-		"msg":  "ok",
-		"data": data,
+		"code":    0,
+		"message": "ok",
+		"data":    data,
 	})
 }
 
 // Fail writes a failed response with the given code and message.
-func (c *Context) Fail(code int, msg string) {
+func (c *Context) Fail(code int, message string) {
 	c.JSON(http.StatusOK, map[string]interface{}{
-		"code": code,
-		"msg":  msg,
+		"code":    code,
+		"message": message,
 	})
 }
