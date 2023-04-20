@@ -203,11 +203,11 @@ func (c *Context) SetBody(body []byte) {
 
 // JSON writes a JSON response with the given status code and object.
 func (c *Context) JSON(code int, obj interface{}) {
-	encoder := json.Marshal
+	encode := json.Marshal
 	if c.App != nil && c.App.Config.JSONEncoder != nil {
-		encoder = c.App.Config.JSONEncoder
+		encode = c.App.Config.JSONEncoder
 	}
-	encodeData, err := encoder(obj)
+	encodeData, err := encode(obj)
 	if err != nil {
 		panic(err)
 	}
@@ -237,11 +237,8 @@ func (c *Context) XML(code int, obj interface{}) {
 }
 
 // File writes a file as the response.
-func (c *Context) File(filepath string) {
-	err := c.res.file(filepath)
-	if err != nil {
-		panic(err)
-	}
+func (c *Context) File(filepath string) error {
+	return c.res.file(filepath)
 }
 
 // GetData returns the value of a custom data field for the context.

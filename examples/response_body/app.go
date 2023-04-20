@@ -34,7 +34,10 @@ func main() {
 	})
 
 	app.Get("/file", func(ctx *lightning.Context) {
-		ctx.File("./README.md") // Return the contents of the README.md file
+		err := ctx.File("./README.md")
+		if err != nil {
+			ctx.Fail(-1, err.Error())
+		}
 	})
 
 	app.Get("/success", func(ctx *lightning.Context) {
