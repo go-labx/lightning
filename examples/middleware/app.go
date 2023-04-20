@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-labx/lightning"
 	"net/http"
+
+	"github.com/go-labx/lightning"
 )
 
 func main() {

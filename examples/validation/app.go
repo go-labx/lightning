@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/go-labx/lightning"
 )
 
@@ -21,18 +19,14 @@ func main() {
 		var user = &User{}
 
 		// Bind and validate the request body to the User struct
-		if err := ctx.JSONBodyWithValidate(user); err != nil {
+		if err := ctx.JSONBody(user, true); err != nil {
 			// If there is an error, return it as JSON
-			ctx.JSON(http.StatusOK, lightning.Map{
-				"err": err.Error(),
-			})
+			ctx.Fail(-1, err.Error())
 			return
 		}
 
 		// If there is no error, return the User struct as JSON
-		ctx.JSON(http.StatusOK, lightning.Map{
-			"user": user,
-		})
+		ctx.Success(user)
 	})
 
 	app.Run()

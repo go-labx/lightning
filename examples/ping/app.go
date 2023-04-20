@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/go-labx/lightning"
 	"net/http"
+
+	"github.com/go-labx/lightning"
 )
 
 func main() {
