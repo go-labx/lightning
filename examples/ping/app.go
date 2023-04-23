@@ -7,13 +7,17 @@ import (
 )
 
 func main() {
+	// Create a new Lightning app
 	app := lightning.DefaultApp()
 
+	// Define a GET route for "/ping"
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, lightning.Map{
+		// Respond with a JSON message
+		ctx.JSON(http.StatusOK, map[string]string{
 			"message": "pong",
 		})
 	})
 
+	// Run the app
 	app.Run()
 }

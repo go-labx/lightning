@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	app := lightning.NewApp()
+	app := lightning.DefaultApp()
 
 	app.Get("/ping", func(ctx *lightning.Context) {
 		// get the value of the "sid" cookie
