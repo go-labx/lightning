@@ -85,7 +85,7 @@ func DefaultApp() *Application {
 	return app
 }
 
-// Use adds one or more MiddlewareFuncs to the array of middlewares in the Application struct.
+// Use adds one or more Middlewares to the array of middlewares in the Application struct.
 func (app *Application) Use(middlewares ...Middleware) {
 	app.middlewares = append(app.middlewares, middlewares...)
 }
