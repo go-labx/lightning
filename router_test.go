@@ -13,7 +13,7 @@ func TestNewRouter(t *testing.T) {
 		t.Errorf("newRouter returned nil")
 	}
 
-	if len(router.roots) != 0 {
+	if len(router.Roots) != 0 {
 		t.Errorf("newRouter did not initialize roots map correctly")
 	}
 }
@@ -25,20 +25,20 @@ func TestNewTrieNode(t *testing.T) {
 		t.Error("Failed to create a new trieNode instance")
 	}
 
-	if node.isEnd != false {
-		t.Errorf("Expected isEnd to be false, but got %v", node.isEnd)
+	if node.IsEnd != false {
+		t.Errorf("Expected isEnd to be false, but got %v", node.IsEnd)
 	}
 
 	if len(node.handlers) != 0 {
 		t.Errorf("newTrieNode did not initialize handlers correctly")
 	}
 
-	if node.wildcard != "" {
-		t.Errorf("Expected wildcard to be empty, but got %v", node.wildcard)
+	if node.Wildcard != "" {
+		t.Errorf("Expected wildcard to be empty, but got %v", node.Wildcard)
 	}
 
-	if len(node.params) != 0 {
-		t.Errorf("Expected paramsMap to be empty, but got %v", node.params)
+	if len(node.Params) != 0 {
+		t.Errorf("Expected paramsMap to be empty, but got %v", node.Params)
 	}
 }
 
@@ -51,21 +51,21 @@ func TestAddRouteStaticPatternValidHandler(t *testing.T) {
 	router.addRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
-	root := router.roots[method]
-	node, ok := root.children["home"]
+	root := router.Roots[method]
+	node, ok := root.Children["home"]
 	if !ok {
 		t.Errorf("expected route to be added, but wasn't")
 	}
 	if node == nil {
 		t.Errorf("expected a non-nil node, but got nil")
 	}
-	if !node.isEnd {
+	if !node.IsEnd {
 		t.Errorf("expected node to be an end node, but wasn't")
 	}
 	if len(node.handlers) == 0 {
 		t.Errorf("expected node to have a non-nil handler, but got nil")
 	}
-	if node.params == nil {
+	if node.Params == nil {
 		t.Errorf("expected node to have non-nil paramsMap, but got nil")
 	}
 }
@@ -79,19 +79,19 @@ func TestAddRouteParameterizedPatternValidHandler(t *testing.T) {
 	router.addRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
-	root := router.roots[method]
-	node, ok := root.children["users"].children[":"]
+	root := router.Roots[method]
+	node, ok := root.Children["users"].Children[":"]
 	if !ok {
 		t.Errorf("Expected the route to be added, but it wasn't")
 	}
 	if node == nil {
 		t.Errorf("Expected a non-nil node, but got nil")
 	}
-	if node.params == nil {
+	if node.Params == nil {
 		t.Errorf("Expected non-nil paramsMap, but got nil")
 	}
-	if node.params["id"] != 1 {
-		t.Errorf("Expected 1 parameter, but got %d", node.params["id"])
+	if node.Params["id"] != 1 {
+		t.Errorf("Expected 1 parameter, but got %d", node.Params["id"])
 	}
 }
 
@@ -104,26 +104,26 @@ func TestAddRouteWildcardPatternValidHandler(t *testing.T) {
 	router.addRoute(method, pattern, handlers)
 
 	// Assert that the route was added correctly.
-	root := router.roots[method]
-	node, ok := root.children["users"]
+	root := router.Roots[method]
+	node, ok := root.Children["users"]
 	if !ok {
 		t.Errorf("Expected the route to be added, but it wasn't")
 	}
-	node, ok = node.children["*"]
+	node, ok = node.Children["*"]
 	if node == nil {
 		t.Errorf("Expected a non-nil node, but got nil")
 	}
-	if !node.isEnd {
+	if !node.IsEnd {
 		t.Errorf("Expected node to be an end node, but wasn't")
 	}
 	if len(node.handlers) == 0 {
 		t.Errorf("Expected node to have a non-nil handler, but got nil")
 	}
-	if node.params == nil {
+	if node.Params == nil {
 		t.Errorf("Expected node to have non-nil paramsMap, but got nil")
 	}
-	if node.wildcard != "name" {
-		t.Errorf("Expected node to have wildcard 'name', but got '%s'", node.wildcard)
+	if node.Wildcard != "name" {
+		t.Errorf("Expected node to have wildcard 'name', but got '%s'", node.Wildcard)
 	}
 }
 

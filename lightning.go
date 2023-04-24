@@ -30,6 +30,7 @@ type Config struct {
 	JSONEncoder     JSONMarshal
 	JSONDecoder     JSONUnmarshal
 	NotFoundHandler HandlerFunc // Handler function for 404 Not Found error
+	EnableDebug     bool
 }
 
 func (c *Config) merge(configs ...*Config) *Config {
@@ -58,6 +59,7 @@ func defaultConfig() *Config {
 		JSONEncoder:     json.Marshal,
 		JSONDecoder:     json.Unmarshal,
 		NotFoundHandler: defaultNotFound,
+		EnableDebug:     true,
 	}
 }
 
@@ -71,6 +73,12 @@ func NewApp(c ...*Config) *Application {
 		router:      newRouter(),
 		middlewares: make([]HandlerFunc, 0),
 		Logger:      logger,
+	}
+
+	if app.Config.EnableDebug {
+		app.Get("/__debug__/router-map", func(ctx *Context) {
+			ctx.JSON(200, app.router.Roots)
+		})
 	}
 
 	return app
