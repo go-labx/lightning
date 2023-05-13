@@ -89,11 +89,10 @@ func TestGroup_AddRoute(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.AddRoute(http.MethodGet, "/path", handlers)
-	root := app.router.Roots[http.MethodGet]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodGet, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -131,11 +130,10 @@ func TestGroup_Get(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Get("/path", handlers...)
-	root := app.router.Roots[http.MethodGet]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodGet, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -144,11 +142,10 @@ func TestGroup_Post(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Post("/path", handlers...)
-	root := app.router.Roots[http.MethodPost]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodPost, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -157,11 +154,10 @@ func TestGroup_Put(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Put("/path", handlers...)
-	root := app.router.Roots[http.MethodPut]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodPut, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -170,11 +166,10 @@ func TestGroup_Delete(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Delete("/path", handlers...)
-	root := app.router.Roots[http.MethodDelete]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodDelete, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -183,11 +178,10 @@ func TestGroup_Head(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Head("/path", handlers...)
-	root := app.router.Roots[http.MethodHead]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodHead, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -196,11 +190,10 @@ func TestGroup_Patch(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Patch("/path", handlers...)
-	root := app.router.Roots[http.MethodPatch]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodPatch, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }
 
@@ -209,10 +202,9 @@ func TestGroup_Options(t *testing.T) {
 	group := app.Group("/prefix")
 	handlers := []HandlerFunc{func(c *Context) {}}
 	group.Options("/path", handlers...)
-	root := app.router.Roots[http.MethodOptions]
 
-	route := root.Children["prefix"].Children["path"]
-	if reflect.ValueOf(route.handlers[0]) != reflect.ValueOf(handlers[0]) {
-		t.Errorf("Expected handlers to be '%v', but got '%v'", route.handlers[0], handlers[0])
+	searchHandlers, _ := app.router.findRoute(http.MethodOptions, "/prefix/path")
+	if reflect.ValueOf(searchHandlers[0]) != reflect.ValueOf(handlers[0]) {
+		t.Errorf("Expected handlers to be '%v', but got '%v'", searchHandlers[0], handlers[0])
 	}
 }

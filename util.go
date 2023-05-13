@@ -13,6 +13,9 @@ func parsePattern(pattern string) []string {
 	for _, part := range parts {
 		if part != "" {
 			result = append(result, part)
+			if part[0] == '*' {
+				break
+			}
 		}
 	}
 
