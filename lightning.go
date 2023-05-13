@@ -76,7 +76,7 @@ func NewApp(c ...*Config) *Application {
 	}
 
 	if app.Config.EnableDebug {
-		app.Get("/__debug__/router-map", func(ctx *Context) {
+		app.Get("/__debug__/router_map", func(ctx *Context) {
 			ctx.JSON(200, app.router.Roots)
 		})
 	}
@@ -166,7 +166,8 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	defer ctx.flush()
 
 	// Find the matching route and set the handlers and paramsMap in the context
-	handlers, params := app.router.findRoute(req.Method, req.URL.Path)
+	handlers, params := app.router.findRoute(ctx.Method, ctx.Path)
+
 	// This check is necessary because if no matching route is found and the handlers slice is left empty,
 	// the middleware chain will not be executed and the client will receive an empty response.
 	// By appending the 404 handler function to the handlers slice,

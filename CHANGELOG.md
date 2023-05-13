@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.1] - May 13, 2023
+
+### Changed
+
+- refactor router to prefix tree
+
 ## [0.4.0] - Apr 20, 2023
 
 ### Added

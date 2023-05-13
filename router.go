@@ -1,121 +1,130 @@
 package lightning
 
-import (
-	"fmt"
-	"strings"
-)
+import "strings"
 
-// trieNode represents a node in the trie data structure used by the router.
-type trieNode struct {
-	Children map[string]*trieNode `json:"children"` // A map of child nodes keyed by their string values
-	IsEnd    bool                 `json:"isEnd"`    // boolean flag indicating whether the node marks the end of a route
-	handlers []HandlerFunc        // `HandlerFunc` functions that handles requests for the node's route
-	Params   map[string]int       `json:"params"`   // a map of parameter names and their corresponding indices in the route pattern
-	Wildcard string               `json:"wildcard"` // a string representing the name of the wildcard parameter in the route pattern (if any)
+// node is a struct that represents a node in the trie
+type node struct {
+	// Pattern is the pattern of the node
+	Pattern string `json:"pattern"`
+	// Part is the part of the node
+	Part string `json:"part"`
+	// IsWild is a boolean that indicates whether the node is a wildcard
+	IsWild bool `json:"isWild"`
+	// Children is a slice of pointers to the children of the node
+	Children []*node `json:"children,omitempty"`
+	// handlers is a slice of HandlerFuncs that are associated with the node
+	handlers []HandlerFunc
 }
 
-// router represents the HTTP router.
-type router struct {
-	Roots map[string]*trieNode `json:"roots"`
-}
-
-// newTrieNode creates a new instance of the `trieNode` struct with default values.
-func newTrieNode() *trieNode {
-	return &trieNode{
-		Children: make(map[string]*trieNode),
-		IsEnd:    false,
-		handlers: make([]HandlerFunc, 0),
-		Params:   make(map[string]int),
-		Wildcard: "",
+// matchChild returns the child node that matches the given part
+func (n *node) matchChild(part string) *node {
+	for _, child := range n.Children {
+		if child.Part == part || child.IsWild {
+			return child
+		}
 	}
+	return nil
 }
 
-// newRouter creates a new instance of the `router` struct with an empty `roots` map.
+// matchChildren returns a slice of child nodes that match the given part
+func (n *node) matchChildren(part string) []*node {
+	nodes := make([]*node, 0)
+	for _, child := range n.Children {
+		if child.Part == part || child.IsWild {
+			nodes = append(nodes, child)
+		}
+	}
+	return nodes
+}
+
+// insert inserts a new node into the trie
+func (n *node) insert(pattern string, parts []string, height int, handlers []HandlerFunc) {
+	if len(parts) == height {
+		n.Pattern = pattern
+		n.handlers = handlers
+		return
+	}
+
+	part := parts[height]
+	child := n.matchChild(part)
+	if child == nil {
+		child = &node{Part: part, IsWild: part[0] == ':' || part[0] == '*'}
+		n.Children = append(n.Children, child)
+	}
+	child.insert(pattern, parts, height+1, handlers)
+}
+
+// search searches the trie for a node that matches the given parts
+func (n *node) search(parts []string, height int) *node {
+	if len(parts) == height || strings.HasPrefix(n.Part, "*") {
+		if n.Pattern == "" {
+			return nil
+		}
+		return n
+	}
+
+	part := parts[height]
+	children := n.matchChildren(part)
+
+	for _, child := range children {
+		result := child.search(parts, height+1)
+		if result != nil {
+			return result
+		}
+	}
+
+	return nil
+}
+
+// router is a struct that represents a router
+type router struct {
+	// Roots is a map of HTTP methods to the root nodes of the trie
+	Roots map[string]*node `json:"roots"`
+}
+
+// newRouter creates a new router
 func newRouter() *router {
 	return &router{
-		Roots: make(map[string]*trieNode),
+		Roots: make(map[string]*node, 0),
 	}
 }
 
-// addRoute adds a new route to the router.
+// addRoute adds a new route to the router
 func (r *router) addRoute(method string, pattern string, handlers []HandlerFunc) {
-	if !isValidHTTPMethod(method) {
-		panic(fmt.Sprintf("method `%s` is not a standard HTTP method", method))
-	}
-	root, ok := r.Roots[method]
-	if !ok {
-		root = newTrieNode()
-		r.Roots[method] = root
-	}
-
-	params := make(map[string]int)
 	parts := parsePattern(pattern)
-	for i, part := range parts {
-		if part[0] == ':' {
-			// parameter
-			name := part[1:]
-			params[name] = i
-			if root.Children[":"] == nil {
-				root.Children[":"] = newTrieNode()
-			}
-			root = root.Children[":"]
-		} else if part[0] == '*' {
-			// wildcard
-			name := part[1:]
-			if root.Children["*"] == nil {
-				root.Children["*"] = newTrieNode()
-			}
-			root = root.Children["*"]
-			root.Wildcard = name
-			break
-		} else {
-			// static
-			if root.Children[part] == nil {
-				root.Children[part] = newTrieNode()
-			}
-			root = root.Children[part]
-		}
-	}
 
-	root.IsEnd = true        // mark the end of the route
-	root.handlers = handlers // set the handlers for the route
-	root.Params = params     // set the parameters for the route
+	_, ok := r.Roots[method]
+	if !ok {
+		r.Roots[method] = &node{}
+	}
+	r.Roots[method].insert(pattern, parts, 0, handlers)
 }
 
-// findRoute is used to find the appropriate handler function for a given HTTP request method and URL pattern.
-func (r *router) findRoute(method string, pattern string) ([]HandlerFunc, map[string]string) {
+// findRoute finds the route that matches the given method and path
+func (r *router) findRoute(method string, path string) ([]HandlerFunc, map[string]string) {
+	searchParts := parsePattern(path)
+	params := make(map[string]string)
 	root, ok := r.Roots[method]
+
 	if !ok {
 		return nil, nil
 	}
-	params := make(map[string]string)
-	values := make(map[int]string)
 
-	parts := parsePattern(pattern)
-	for i, part := range parts {
-		if root.Children[part] != nil {
-			root = root.Children[part]
-		} else if root.Children[":"] != nil {
-			root = root.Children[":"]
-			values[i] = part
-		} else if root.Children["*"] != nil {
-			root = root.Children["*"]
-			if root.Wildcard != "" {
-				params[root.Wildcard] = strings.Join(parts[i:], "/")
+	n := root.search(searchParts, 0)
+
+	if n != nil {
+		parts := parsePattern(n.Pattern)
+		for index, part := range parts {
+			if part[0] == ':' {
+				params[part[1:]] = searchParts[index]
 			}
-			break
-		} else {
-			return nil, nil
+			if part[0] == '*' && len(part) > 1 {
+				params[part[1:]] = strings.Join(searchParts[index:], "/")
+				break
+			}
 		}
+		return n.handlers, params
 	}
 
-	if !root.IsEnd {
-		return nil, nil
-	}
-
-	for name, index := range root.Params {
-		params[name] = values[index]
-	}
-
-	return root.handlers, params
+	return nil, nil
 }
