@@ -224,6 +224,18 @@ func (c *Context) Text(code int, text string) {
 	c.res.setBody([]byte(text))
 }
 
+// HTML writes an HTML response with the given status code, template name, and data.
+func (c *Context) HTML(code int, name string, data interface{}) {
+	c.SetHeader(HeaderContentType, MIMETextHTML)
+	c.SetStatus(code)
+
+	if err := c.App.htmlTemplates.ExecuteTemplate(c.Res, name, data); err != nil {
+		c.Text(500, err.Error())
+	} else {
+		c.SkipFlush()
+	}
+}
+
 // XML writes an XML response with the given status code and object.
 func (c *Context) XML(code int, obj interface{}) {
 	encodeData, err := xml.Marshal(obj)
