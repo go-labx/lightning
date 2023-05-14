@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.5.0] - May 14, 2023
+
+### Added
+
+- `ctx.HTML(code int, name string, data interface{})` writes an HTML response with the given status code, template name, and data.
+- `ctx.Static(root string, prefix string)` serves static files from the given root directory with the given prefix.
+- `app.LoadHTMLGlob(pattern string)` loads HTML templates from a glob pattern and sets them in the Application struct.
+- `app.SetFuncMap(funcMap template.FuncMap)` sets the funcMap in the Application struct to the funcMap passed in as an argument.
+
 ## [0.4.1] - May 13, 2023
 
 ### Changed

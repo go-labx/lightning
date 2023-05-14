@@ -3,7 +3,12 @@ package lightning
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path"
+	"path/filepath"
 	"reflect"
+	"strings"
+	"text/template"
 
 	"github.com/go-labx/lightlog"
 )
@@ -16,9 +21,11 @@ type Middleware = HandlerFunc
 type Map map[string]any
 
 type Application struct {
-	Config      *Config
-	router      *router
-	middlewares []HandlerFunc
+	Config        *Config
+	router        *router
+	middlewares   []HandlerFunc
+	htmlTemplates *template.Template
+	funcMap       template.FuncMap
 
 	Logger *lightlog.ConsoleLogger
 }
@@ -151,6 +158,43 @@ func (app *Application) Options(pattern string, handlers ...HandlerFunc) {
 // Group returns a new instance of the Group struct with the given prefix.
 func (app *Application) Group(prefix string) *Group {
 	return newGroup(app, prefix)
+}
+
+// Static serves static files from the given root directory with the given prefix.
+// It uses the os.Executable function to get the path of the executable file,
+// and then joins it with the root and the path after the prefix to get the full file path.
+// If the file exists, it is served with a 200 status code using the http.ServeFile function.
+// If the file does not exist, a 404 status code is returned with the text "Not Found".
+func (app *Application) Static(root string, prefix string) {
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	exPath := filepath.Dir(ex)
+
+	app.Get(path.Join(prefix, "/*"), func(ctx *Context) {
+		fullFilePath := filepath.Join(exPath, root, strings.TrimPrefix(ctx.Path, prefix))
+
+		if _, err := os.Stat(fullFilePath); !os.IsNotExist(err) {
+			ctx.SkipFlush()
+			ctx.SetStatus(http.StatusOK)
+			http.ServeFile(ctx.Res, ctx.Req, fullFilePath)
+		} else {
+			ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+		}
+	})
+}
+
+// SetFuncMap sets the funcMap in the Application struct to the funcMap passed in as an argument.
+func (app *Application) SetFuncMap(funcMap template.FuncMap) {
+	app.funcMap = funcMap
+}
+
+// LoadHTMLGlob loads HTML templates from a glob pattern and sets them in the Application struct.
+// It uses the template.Must function to panic if there is an error parsing the templates.
+// It also sets the funcMap in the Application struct to the funcMap passed in as an argument.
+func (app *Application) LoadHTMLGlob(pattern string) {
+	app.htmlTemplates = template.Must(template.New("").Funcs(app.funcMap).ParseGlob(pattern))
 }
 
 // ServeHTTP is the function that handles HTTP requests.
