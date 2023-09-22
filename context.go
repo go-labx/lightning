@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"net/http"
+	"strconv"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -119,6 +120,71 @@ func (c *Context) JSONBody(v interface{}, valid ...bool) error {
 // Param returns the value of a URL parameter for a given key.
 func (c *Context) Param(key string) string {
 	return c.req.param(key)
+}
+
+// ParamInt returns the value of a URL parameter as an integer for a given key.
+func (c *Context) ParamInt(key string) (int, error) {
+	str := c.Param(key)
+	value, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+// ParamUInt returns the value of a URL parameter as a uint for a given key.
+func (c *Context) ParamUInt(key string) (uint, error) {
+	str := c.Param(key)
+	value, err := strconv.ParseUint(str, 10, 32)
+	if err != nil {
+		return 0, err
+	}
+	return uint(value), nil
+}
+
+// ParamInt64 returns the value of a URL parameter as an int64 for a given key.
+func (c *Context) ParamInt64(key string) (int64, error) {
+	str := c.Param(key)
+	value, err := strconv.ParseInt(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+// ParamUInt64 returns the value of a URL parameter as a uint64 for a given key.
+func (c *Context) ParamUInt64(key string) (uint64, error) {
+	str := c.Param(key)
+	value, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+// ParamFloat32 returns the value of a URL parameter as a float32 for a given key.
+func (c *Context) ParamFloat32(key string) (float32, error) {
+	str := c.Param(key)
+	value, err := strconv.ParseFloat(str, 32)
+	if err != nil {
+		return 0, err
+	}
+	return float32(value), nil
+}
+
+// ParamFloat64 returns the value of a URL parameter as a float64 for a given key.
+func (c *Context) ParamFloat64(key string) (float64, error) {
+	str := c.Param(key)
+	value, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0, err
+	}
+	return value, nil
+}
+
+// ParamString returns the value of a URL parameter as a string for a given key.
+func (c *Context) ParamString(key string) string {
+	return c.Param(key)
 }
 
 // Params returns all URL parameters for the req.

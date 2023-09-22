@@ -109,7 +109,7 @@ func (app *Application) Use(middlewares ...Middleware) {
 // It composes the global middlewares, route-specific middlewares, and the actual handler function
 // to form a single MiddlewareFunc, and then adds it to the router.
 func (app *Application) AddRoute(method string, pattern string, handlers []HandlerFunc) {
-	app.Logger.Debug("register route %s\t-> %s", method, pattern)
+	app.Logger.Debug(" %s\t-> %s", method, pattern)
 	allHandlers := make([]HandlerFunc, 0)
 	allHandlers = append(allHandlers, app.middlewares...)
 	allHandlers = append(allHandlers, handlers...)
