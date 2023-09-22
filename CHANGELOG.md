@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.6.0] - Sep 22, 2023
+
+### Added
+
+- ParamInt(key string) (int, error): Returns the value of a URL parameter as an integer.
+- ParamUInt(key string) (uint, error): Returns the value of a URL parameter as a uint.
+- ParamInt64(key string) (int64, error): Returns the value of a URL parameter as an int64.
+- ParamUInt64(key string) (uint64, error): Returns the value of a URL parameter as a uint64.
+- ParamFloat32(key string) (float32, error): Returns the value of a URL parameter as a float32.
+- ParamFloat64(key string) (float64, error): Returns the value of a URL parameter as a float64.
+- ParamString(key string) string: Returns the value of a URL parameter as a string.
+
 ## [0.5.0] - May 14, 2023
 
 ### Added
@@ -63,7 +75,7 @@
 
 ### Other
 
-- chore: republish 
+- chore: republish
 
 ## [0.1.2] - Apr 3, 2023
 

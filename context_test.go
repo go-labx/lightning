@@ -237,6 +237,265 @@ func TestContext_Param(t *testing.T) {
 	}
 }
 
+func TestContext_ParamInt(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamInt("id")
+	if err != nil {
+		t.Errorf("ctx.ParamInt(\"id\") returned an error: %v", err)
+	}
+	want := 123
+	if got != want {
+		t.Errorf("ctx.ParamInt(\"id\") = %d, want %d", got, want)
+	}
+}
+
+func TestContext_ParamIntWithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamInt("id")
+	if err == nil {
+		t.Error("ctx.ParamInt(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamUInt(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamUInt("id")
+	if err != nil {
+		t.Errorf("ctx.ParamUInt(\"id\") returned an error: %v", err)
+	}
+	want := uint(123)
+	if got != want {
+		t.Errorf("ctx.ParamUInt(\"id\") = %d, want %d", got, want)
+	}
+}
+
+func TestContext_ParamUIntWithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamUInt("id")
+	if err == nil {
+		t.Error("ctx.ParamUInt(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamInt64(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamInt64("id")
+	if err != nil {
+		t.Errorf("ctx.ParamInt64(\"id\") returned an error: %v", err)
+	}
+	want := int64(123)
+	if got != want {
+		t.Errorf("ctx.ParamInt64(\"id\") = %d, want %d", got, want)
+	}
+}
+
+func TestContext_ParamInt64WithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamInt64("id")
+	if err == nil {
+		t.Error("ctx.ParamInt64(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamUInt64(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamUInt64("id")
+	if err != nil {
+		t.Errorf("ctx.ParamUInt64(\"id\") returned an error: %v", err)
+	}
+	want := uint64(123)
+	if got != want {
+		t.Errorf("ctx.ParamUInt64(\"id\") = %d, want %d", got, want)
+	}
+}
+
+func TestContext_ParamUInt64WithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamUInt64("id")
+	if err == nil {
+		t.Error("ctx.ParamUInt64(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamFloat32(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123.456", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123.456"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamFloat32("id")
+	if err != nil {
+		t.Errorf("ctx.ParamFloat32(\"id\") returned an error: %v", err)
+	}
+	want := float32(123.456)
+	if got != want {
+		t.Errorf("ctx.ParamFloat32(\"id\") = %f, want %f", got, want)
+	}
+}
+
+func TestContext_ParamFloat32WithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamFloat32("id")
+	if err == nil {
+		t.Error("ctx.ParamFloat32(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamFloat64(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123.456", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123.456"}
+	ctx.setParams(params)
+
+	got, err := ctx.ParamFloat64("id")
+	if err != nil {
+		t.Errorf("ctx.ParamFloat64(\"id\") returned an error: %v", err)
+	}
+	want := float64(123.456)
+	if got != want {
+		t.Errorf("ctx.ParamFloat64(\"id\") = %f, want %f", got, want)
+	}
+}
+
+func TestContext_ParamFloat64WithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/abc", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "abc"}
+	ctx.setParams(params)
+
+	_, err = ctx.ParamFloat64("id")
+	if err == nil {
+		t.Error("ctx.ParamFloat64(\"id\") did not return an error")
+	}
+}
+
+func TestContext_ParamString(t *testing.T) {
+	req, err := http.NewRequest("GET", "/users/123", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	params := map[string]string{"id": "123"}
+	ctx.setParams(params)
+
+	got := ctx.ParamString("id")
+	want := "123"
+	if got != want {
+		t.Errorf("ctx.ParamString(\"id\") = %s, want %s", got, want)
+	}
+}
+
 func TestContext_Query(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=value", nil)
 	if err != nil {
