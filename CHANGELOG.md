@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0] - Oct 13, 2023
+
+### Added
+
+- `ctx.QueryString(key string) string`: Returns the value of a given query parameter as a string.
+- `ctx.QueryInt(key string) (int, error)`: Returns the value of a given query parameter as an int.
+- `ctx.QueryUInt(key string) (uint, error)`: Returns the value of a given query parameter as a uint.
+- `ctx.QueryInt8(key string) (int8, error)`: Returns the value of a given query parameter as an int8.
+- `ctx.QueryUInt8(key string) (uint8, error)`: Returns the value of a given query parameter as a uint8.
+- `ctx.QueryInt32(key string) (int32, error)`: Returns the value of a given query parameter as an int32.
+- `ctx.QueryUInt32(key string) (uint32, error)`: Returns the value of a given query parameter as a uint32.
+- `ctx.QueryInt64(key string) (int64, error)`: Returns the value of a given query parameter as an int64.
+- `ctx.QueryUInt64(key string) (uint64, error)`: Returns the value of a given query parameter as a uint64.
+- `ctx.QueryFloat32(key string) (float32, error)`: Returns the value of a given query parameter as a float32.
+- `ctx.QueryFloat64(key string) (float64, error)`: Returns the value of a given query parameter as a float64.
+
 ## [0.6.0] - Sep 22, 2023
 
 ### Added
