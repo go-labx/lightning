@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] - Oct 13, 2023
+
+### Fixed
+
+- Fixed empty string check in QueryInt, QueryUInt, QueryInt8, QueryUInt8, QueryInt32, QueryUInt32, QueryInt64, QueryUInt64, QueryFloat32, and QueryFloat64.
+
 ## [0.7.0] - Oct 13, 2023
 
 ### Added

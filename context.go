@@ -205,6 +205,9 @@ func (c *Context) QueryString(key string) string {
 // QueryInt returns the value of a given query parameter as an int.
 func (c *Context) QueryInt(key string) (int, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.Atoi(str)
 	if err != nil {
 		return 0, err
@@ -215,6 +218,9 @@ func (c *Context) QueryInt(key string) (int, error) {
 // QueryUInt returns the value of a given query parameter as a uint.
 func (c *Context) QueryUInt(key string) (uint, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseUint(str, 10, 32)
 	if err != nil {
 		return 0, err
@@ -225,6 +231,9 @@ func (c *Context) QueryUInt(key string) (uint, error) {
 // QueryInt8 returns the value of a given query parameter as an int8.
 func (c *Context) QueryInt8(key string) (int8, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseInt(str, 10, 8)
 	if err != nil {
 		return 0, err
@@ -235,6 +244,9 @@ func (c *Context) QueryInt8(key string) (int8, error) {
 // QueryUInt8 returns the value of a given query parameter as a uint8.
 func (c *Context) QueryUInt8(key string) (uint8, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseUint(str, 10, 8)
 	if err != nil {
 		return 0, err
@@ -245,6 +257,9 @@ func (c *Context) QueryUInt8(key string) (uint8, error) {
 // QueryInt32 returns the value of a given query parameter as an int32.
 func (c *Context) QueryInt32(key string) (int32, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseInt(str, 10, 32)
 	if err != nil {
 		return 0, err
@@ -255,6 +270,9 @@ func (c *Context) QueryInt32(key string) (int32, error) {
 // QueryUInt32 returns the value of a given query parameter as a uint32.
 func (c *Context) QueryUInt32(key string) (uint32, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseUint(str, 10, 32)
 	if err != nil {
 		return 0, err
@@ -265,6 +283,9 @@ func (c *Context) QueryUInt32(key string) (uint32, error) {
 // QueryInt64 returns the value of a given query parameter as an int64.
 func (c *Context) QueryInt64(key string) (int64, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
 		return 0, err
@@ -275,6 +296,9 @@ func (c *Context) QueryInt64(key string) (int64, error) {
 // QueryUInt64 returns the value of a given query parameter as a uint64.
 func (c *Context) QueryUInt64(key string) (uint64, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseUint(str, 10, 64)
 	if err != nil {
 		return 0, err
@@ -285,6 +309,9 @@ func (c *Context) QueryUInt64(key string) (uint64, error) {
 // QueryFloat32 returns the value of a given query parameter as a float32.
 func (c *Context) QueryFloat32(key string) (float32, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseFloat(str, 32)
 	if err != nil {
 		return 0, err
@@ -295,6 +322,9 @@ func (c *Context) QueryFloat32(key string) (float32, error) {
 // QueryFloat64 returns the value of a given query parameter as a float64.
 func (c *Context) QueryFloat64(key string) (float64, error) {
 	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
 	value, err := strconv.ParseFloat(str, 64)
 	if err != nil {
 		return 0, err
