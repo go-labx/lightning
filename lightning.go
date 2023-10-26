@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"text/template"
 
@@ -102,6 +103,10 @@ func DefaultApp() *Application {
 
 // Use adds one or more Middlewares to the array of middlewares in the Application struct.
 func (app *Application) Use(middlewares ...Middleware) {
+	for _, v := range middlewares {
+		funcName := runtime.FuncForPC(reflect.ValueOf(v).Pointer()).Name()
+		app.Logger.Debug("use middleware -> %s", funcName)
+	}
 	app.middlewares = append(app.middlewares, middlewares...)
 }
 
