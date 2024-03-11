@@ -1,6 +1,8 @@
 package lightning
 
-import "strings"
+import (
+	"strings"
+)
 
 // node is a struct that represents a node in the trie
 type node struct {
@@ -19,22 +21,11 @@ type node struct {
 // matchChild returns the child node that matches the given part
 func (n *node) matchChild(part string) *node {
 	for _, child := range n.Children {
-		if child.Part == part || child.IsWild {
+		if child.Part == part {
 			return child
 		}
 	}
 	return nil
-}
-
-// matchChildren returns a slice of child nodes that match the given part
-func (n *node) matchChildren(part string) []*node {
-	nodes := make([]*node, 0)
-	for _, child := range n.Children {
-		if child.Part == part || child.IsWild {
-			nodes = append(nodes, child)
-		}
-	}
-	return nodes
 }
 
 // insert inserts a new node into the trie
@@ -56,20 +47,31 @@ func (n *node) insert(pattern string, parts []string, height int, handlers []Han
 
 // search searches the trie for a node that matches the given parts
 func (n *node) search(parts []string, height int) *node {
-	if len(parts) == height || strings.HasPrefix(n.Part, "*") {
-		if n.Pattern == "" {
-			return nil
+	if len(parts) == height {
+		if n.Pattern != "" {
+			return n
 		}
-		return n
+		return nil
 	}
 
 	part := parts[height]
-	children := n.matchChildren(part)
+	child := n.matchChild(part)
 
-	for _, child := range children {
-		result := child.search(parts, height+1)
-		if result != nil {
-			return result
+	// Attempt to match exact route first
+	if child != nil {
+		nextNode := child.search(parts, height+1)
+		if nextNode != nil {
+			return nextNode
+		}
+	}
+
+	// Attempt to match wildcard route
+	for _, child := range n.Children {
+		if child.IsWild {
+			nextNode := child.search(parts, height+1)
+			if nextNode != nil {
+				return nextNode
+			}
 		}
 	}
 
