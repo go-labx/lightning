@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.7.3] - Jun 28, 2024
+
+### Added
+
+- add QueryBool method to Context for parsing boolean query parameters
+- add comprehensive unit tests for Context methods
+
+## [0.7.2] - Mar 11, 2024
+
+### Fixed
+
+- fix route matching issue
+
 ## [0.7.1] - Oct 13, 2023
 
 ### Fixed
