@@ -617,6 +617,25 @@ func TestContext_QueryIntWithException(t *testing.T) {
 	}
 }
 
+func TestContext_QueryIntWithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryInt("key")
+	if err != nil {
+		t.Errorf("ctx.QueryInt(\"key\") returned an error: %v", err)
+	}
+	want := 0
+	if got != want {
+		t.Errorf("QueryInt() = %d, want %d", got, want)
+	}
+}
+
 func TestContext_QueryUInt(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=123", nil)
 	if err != nil {
@@ -649,6 +668,25 @@ func TestContext_QueryUIntWithException(t *testing.T) {
 	_, err = ctx.QueryUInt("key")
 	if err == nil {
 		t.Error("ctx.QueryUInt(\"id\") did not return an error")
+	}
+}
+
+func TestContext_QueryUIntWithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryUInt("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt(\"key\") returned an error: %v", err)
+	}
+	want := uint(0)
+	if got != want {
+		t.Errorf("QueryUInt() = %d, want %d", got, want)
 	}
 }
 
@@ -687,6 +725,25 @@ func TestContext_QueryInt8WithException(t *testing.T) {
 	}
 }
 
+func TestContext_QueryInt8WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryInt8("key")
+	if err != nil {
+		t.Errorf("ctx.QueryInt8(\"key\") returned an error: %v", err)
+	}
+	want := int8(0)
+	if got != want {
+		t.Errorf("QueryInt8() = %d, want %d", got, want)
+	}
+}
+
 func TestContext_QueryUInt8(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=123", nil)
 	if err != nil {
@@ -719,6 +776,25 @@ func TestContext_QueryUInt8WithException(t *testing.T) {
 	_, err = ctx.QueryUInt8("key")
 	if err == nil {
 		t.Error("ctx.QueryUInt8(\"id\") did not return an error")
+	}
+}
+
+func TestContext_QueryUInt8WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryUInt8("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt8(\"key\") returned an error: %v", err)
+	}
+	want := uint8(0)
+	if got != want {
+		t.Errorf("QueryUInt8() = %d, want %d", got, want)
 	}
 }
 
@@ -757,6 +833,25 @@ func TestContext_QueryInt32WithException(t *testing.T) {
 	}
 }
 
+func TestContext_QueryInt32WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryInt32("key")
+	if err != nil {
+		t.Errorf("ctx.QueryInt32(\"key\") returned an error: %v", err)
+	}
+	want := int32(0)
+	if got != want {
+		t.Errorf("QueryInt32() = %d, want %d", got, want)
+	}
+}
+
 func TestContext_QueryUInt32(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=123", nil)
 	if err != nil {
@@ -789,6 +884,25 @@ func TestContext_QueryUInt32WithException(t *testing.T) {
 	_, err = ctx.QueryUInt32("key")
 	if err == nil {
 		t.Error("ctx.QueryUInt32(\"id\") did not return an error")
+	}
+}
+
+func TestContext_QueryUInt32WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryUInt32("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt32(\"key\") returned an error: %v", err)
+	}
+	want := uint32(0)
+	if got != want {
+		t.Errorf("QueryUInt32() = %d, want %d", got, want)
 	}
 }
 
@@ -827,6 +941,25 @@ func TestContext_QueryInt64WithException(t *testing.T) {
 	}
 }
 
+func TestContext_QueryInt64WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryInt64("key")
+	if err != nil {
+		t.Errorf("ctx.QueryInt64(\"key\") returned an error: %v", err)
+	}
+	want := int64(0)
+	if got != want {
+		t.Errorf("QueryInt64() = %d, want %d", got, want)
+	}
+}
+
 func TestContext_QueryUInt64(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=123", nil)
 	if err != nil {
@@ -859,6 +992,25 @@ func TestContext_QueryUInt64WithException(t *testing.T) {
 	_, err = ctx.QueryUInt64("key")
 	if err == nil {
 		t.Error("ctx.QueryUInt64(\"id\") did not return an error")
+	}
+}
+
+func TestContext_QueryUInt64WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryUInt64("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt64(\"key\") returned an error: %v", err)
+	}
+	want := uint64(0)
+	if got != want {
+		t.Errorf("QueryUInt64() = %d, want %d", got, want)
 	}
 }
 
@@ -897,6 +1049,25 @@ func TestContext_QueryFloat32WithException(t *testing.T) {
 	}
 }
 
+func TestContext_QueryFloat32WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryFloat32("key")
+	if err != nil {
+		t.Errorf("ctx.QueryFloat32(\"key\") returned an error: %v", err)
+	}
+	want := float32(0)
+	if got != want {
+		t.Errorf("QueryFloat32() = %f, want %f", got, want)
+	}
+}
+
 func TestContext_QueryFloat64(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=3.1415", nil)
 	if err != nil {
@@ -929,6 +1100,25 @@ func TestContext_QueryFloat64WithException(t *testing.T) {
 	_, err = ctx.QueryFloat64("key")
 	if err == nil {
 		t.Error("ctx.QueryFloat64(\"id\") did not return an error")
+	}
+}
+
+func TestContext_QueryFloat64WithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryFloat64("key")
+	if err != nil {
+		t.Errorf("ctx.QueryFloat64(\"key\") returned an error: %v", err)
+	}
+	want := float64(0)
+	if got != want {
+		t.Errorf("QueryFloat64() = %f, want %f", got, want)
 	}
 }
 
