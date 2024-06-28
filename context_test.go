@@ -528,6 +528,60 @@ func TestContext_QueryString(t *testing.T) {
 	}
 }
 
+func TestContext_QueryBool(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=true", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryBool("key")
+	if err != nil {
+		t.Errorf("ctx.QueryBool(\"key\") returned an error: %v", err)
+	}
+	want := true
+	if got != want {
+		t.Errorf("QueryBool() = %v, want %v", got, want)
+	}
+}
+
+func TestContext_QueryBoolWithException(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=notabool", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = ctx.QueryBool("key")
+	if err == nil {
+		t.Error("ctx.QueryBool(\"key\") did not return an error")
+	}
+}
+
+func TestContext_QueryBoolWithEmptyKey(t *testing.T) {
+	req, err := http.NewRequest("GET", "/path?key=", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, err := NewContext(httptest.NewRecorder(), req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := ctx.QueryBool("key")
+	if err != nil {
+		t.Errorf("ctx.QueryBool(\"key\") returned an error: %v", err)
+	}
+	want := false
+	if got != want {
+		t.Errorf("QueryBool() = %v, want %v", got, want)
+	}
+}
+
 func TestContext_QueryInt(t *testing.T) {
 	req, err := http.NewRequest("GET", "/path?key=123", nil)
 	if err != nil {

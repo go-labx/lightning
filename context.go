@@ -202,6 +202,19 @@ func (c *Context) QueryString(key string) string {
 	return c.req.query(key)
 }
 
+// QueryBool returns the value of a given query parameter as a bool.
+func (c *Context) QueryBool(key string) (bool, error) {
+	str := c.req.query(key)
+	if str == "" {
+		return false, nil
+	}
+	value, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, err
+	}
+	return value, nil
+}
+
 // QueryInt returns the value of a given query parameter as an int.
 func (c *Context) QueryInt(key string) (int, error) {
 	str := c.req.query(key)
