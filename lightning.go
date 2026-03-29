@@ -1,13 +1,16 @@
 package lightning
 
 import (
+	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/go-labx/lightlog"
@@ -28,16 +31,20 @@ type Application struct {
 	funcMap       template.FuncMap
 
 	Logger *lightlog.ConsoleLogger
+
+	server *http.Server
+	mu     sync.Mutex
 }
 
 var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
 type Config struct {
-	AppName         string
-	JSONEncoder     JSONMarshal
-	JSONDecoder     JSONUnmarshal
-	NotFoundHandler HandlerFunc // Handler function for 404 Not Found error
-	EnableDebug     bool
+	AppName           string
+	JSONEncoder       JSONMarshal
+	JSONDecoder       JSONUnmarshal
+	NotFoundHandler   HandlerFunc // Handler function for 404 Not Found error
+	EnableDebug       bool
+	MaxRequestBodySize int64 // Max request body size in bytes, 0 means unlimited
 }
 
 func (c *Config) merge(configs ...*Config) *Config {
@@ -45,6 +52,9 @@ func (c *Config) merge(configs ...*Config) *Config {
 
 	// iterate over all the configs passed in
 	for _, config := range configs {
+		if config == nil {
+			continue
+		}
 		v := reflect.ValueOf(config).Elem()
 		t := reflect.TypeOf(config).Elem()
 
@@ -201,6 +211,11 @@ func (app *Application) LoadHTMLGlob(pattern string) {
 // It finds the matching route, creates a new Context, sets the route parameters,
 // and executes the MiddlewareFunc chain.
 func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// Apply max request body size limit
+	if app.Config.MaxRequestBodySize > 0 {
+		req.Body = http.MaxBytesReader(w, req.Body, app.Config.MaxRequestBodySize)
+	}
+
 	// Create a new context
 	ctx, err := NewContext(w, req)
 	if err != nil {
@@ -228,12 +243,39 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 }
 
 // Run starts the HTTP server and listens for incoming requests.
-func (app *Application) Run(address ...string) {
+func (app *Application) Run(address ...string) error {
 	addr := resolveAddress(address)
 	app.Logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
 
-	err := http.ListenAndServe(addr, app)
-	if err != nil {
-		panic(err)
+	app.mu.Lock()
+	app.server = &http.Server{
+		Addr:    addr,
+		Handler: app,
 	}
+	app.mu.Unlock()
+
+	return app.server.ListenAndServe()
+}
+
+// RunListener starts the HTTP server with an existing net.Listener.
+func (app *Application) RunListener(listener net.Listener) error {
+	app.mu.Lock()
+	app.server = &http.Server{
+		Handler: app,
+	}
+	app.mu.Unlock()
+
+	return app.server.Serve(listener)
+}
+
+// Shutdown gracefully shuts down the server without interrupting active connections.
+func (app *Application) Shutdown(ctx context.Context) error {
+	app.mu.Lock()
+	server := app.server
+	app.mu.Unlock()
+
+	if server == nil {
+		return nil
+	}
+	return server.Shutdown(ctx)
 }
