@@ -261,6 +261,7 @@ func (app *Application) acquireContext(w http.ResponseWriter, req *http.Request)
 	ctx.Method = r.method
 	ctx.Path = r.path
 	ctx.App = app
+	ctx.data = contextData{}
 
 	return ctx
 }
