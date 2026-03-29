@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.8.0] - Mar 29, 2026
+
+### Added
+
+- Graceful shutdown support with `Run()`, `RunListener()`, `Shutdown()`, and `RunGraceful()` methods
+- `sync.Pool` for Context reuse to reduce GC pressure and improve performance
+- `MaxRequestBodySize` configuration option for limiting request body size
+- Middleware caching in route groups for better performance
+- Signal handling (SIGINT/SIGTERM) for graceful shutdown
+- Comprehensive integration tests with dynamic port allocation
+
+### Changed
+
+- **BREAKING**: Debug mode default changed from `true` to `false`
+- Logger middleware now uses `ctx.App.Logger.Info()` instead of `fmt.Printf`
+- X-Forwarded-For header parsing now correctly handles comma-separated IP addresses
+- Replaced `interface{}` with `any` throughout codebase
+- Improved global logger implementation
+
+### Fixed
+
+- Critical shutdown issue where server wouldn't stop properly
+- Config merge nil pointer panic
+- Request body size limit enforcement
+- Context pool reuse bug where data wasn't being reset properly
+
+### Removed
+
+- Deprecated and unused code
+- Hardcoded test ports in favor of dynamic allocation
+
+### Performance
+
+- Test coverage improved from 81.2% to 90.9%
+
 ## [0.7.3] - Jun 28, 2024
 
 ### Added

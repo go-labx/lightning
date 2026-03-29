@@ -3,6 +3,7 @@ package lightning
 import (
 	"io"
 	"net/http"
+	"strings"
 )
 
 type request struct {
@@ -99,9 +100,16 @@ func (r *request) remoteAddr() string {
 	ip := r.header("x-real-ip")
 	if ip == "" {
 		ip = r.header("x-forwarded-for")
-		if ip == "" {
-			ip = r.originReq.RemoteAddr
+		if ip != "" {
+			// X-Forwarded-For may contain multiple IPs: client, proxy1, proxy2
+			// Take the first one (client IP)
+			if idx := strings.Index(ip, ","); idx != -1 {
+				ip = strings.TrimSpace(ip[:idx])
+			}
 		}
+	}
+	if ip == "" {
+		ip = r.originReq.RemoteAddr
 	}
 	return ip
 }

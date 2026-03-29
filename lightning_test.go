@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -280,13 +281,21 @@ func TestServeHTTP(t *testing.T) {
 
 func TestRun(t *testing.T) {
 	app := NewApp()
-	go app.Run("localhost:9999")
+
+	// Use dynamic port allocation to avoid port conflicts
+	listener, err := net.Listen("tcp", "localhost:0")
+	if err != nil {
+		t.Fatalf("Failed to create listener: %v", err)
+	}
+	addr := listener.Addr().String()
+
+	go app.RunListener(listener)
 
 	// Wait for the server to start
 	time.Sleep(100 * time.Millisecond)
 
 	// Send a GET request to the server
-	resp, err := http.Get("http://localhost:9999")
+	resp, err := http.Get("http://" + addr)
 	if err != nil {
 		t.Fatalf("Error sending request: %v", err)
 	}

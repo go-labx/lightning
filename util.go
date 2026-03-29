@@ -1,6 +1,7 @@
 package lightning
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -24,13 +25,13 @@ func parsePattern(pattern string) []string {
 
 func resolveAddress(addr []string) string {
 	if port := os.Getenv("PORT"); port != "" {
-		logger.Debug("Environment variable PORT=\"%s\"", port)
+		log.Printf("[DEBUG] Environment variable PORT=\"%s\"", port)
 		return ":" + port
 	}
 
 	switch len(addr) {
 	case 0:
-		logger.Debug("Using port :6789 by default")
+		log.Printf("[DEBUG] Using port :6789 by default")
 		return ":6789"
 	case 1:
 		return addr[0]
@@ -47,13 +48,4 @@ func defaultNotFound(ctx *Context) {
 // defaultInternalServerError is the default handler function for 500 Internal Server Error
 func defaultInternalServerError(ctx *Context) {
 	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
-}
-
-// isValidHTTPMethod checks if a given HTTP method is valid.
-func isValidHTTPMethod(method string) bool {
-	switch method {
-	case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":
-		return true
-	}
-	return false
 }

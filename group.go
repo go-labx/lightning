@@ -8,6 +8,8 @@ type Group struct {
 	parent      *Group
 	prefix      string
 	middlewares []HandlerFunc
+	// cachedMiddlewares caches the merged middleware chain to avoid repeated allocations
+	cachedMiddlewares []HandlerFunc
 }
 
 // newGroup creates a new Group with the given prefix and Application.
@@ -29,11 +31,23 @@ func (g *Group) getFullPrefix() string {
 }
 
 // getMiddlewares returns the middleware functions of the Group and its ancestors.
+// Uses cached result when available to avoid repeated allocations.
 func (g *Group) getMiddlewares() []HandlerFunc {
-	if g.parent == nil {
-		return g.middlewares
+	if g.cachedMiddlewares != nil {
+		return g.cachedMiddlewares
 	}
-	return append(g.parent.getMiddlewares(), g.middlewares...)
+
+	if g.parent == nil {
+		g.cachedMiddlewares = g.middlewares
+		return g.cachedMiddlewares
+	}
+
+	parentMiddlewares := g.parent.getMiddlewares()
+	merged := make([]HandlerFunc, len(parentMiddlewares)+len(g.middlewares))
+	copy(merged, parentMiddlewares)
+	copy(merged[len(parentMiddlewares):], g.middlewares)
+	g.cachedMiddlewares = merged
+	return g.cachedMiddlewares
 }
 
 // Group creates a new Group with the given prefix and adds it as a child of the current Group.
@@ -55,6 +69,8 @@ func (g *Group) AddRoute(method string, pattern string, handlers []HandlerFunc) 
 // Use adds the given middleware functions to the Group's middleware stack.
 func (g *Group) Use(middlewares ...HandlerFunc) {
 	g.middlewares = append(g.middlewares, middlewares...)
+	// Invalidate cache when middleware changes
+	g.cachedMiddlewares = nil
 }
 
 // Get adds a new GET route to the Application with the given pattern and handlers.
