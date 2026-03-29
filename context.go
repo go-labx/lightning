@@ -113,7 +113,7 @@ func (c *Context) StringBody() string {
 var validate = validator.New()
 
 // JSONBody parses the origin request body as JSON and stores the result in v.
-func (c *Context) JSONBody(v interface{}, valid ...bool) error {
+func (c *Context) JSONBody(v any, valid ...bool) error {
 	decode := json.Unmarshal
 	if c.App != nil && c.App.Config.JSONDecoder != nil {
 		decode = c.App.Config.JSONDecoder
@@ -198,6 +198,7 @@ func (c *Context) ParamFloat64(key string) (float64, error) {
 }
 
 // ParamString returns the value of a URL parameter as a string for a given key.
+// Deprecated: Use Param instead.
 func (c *Context) ParamString(key string) string {
 	return c.Param(key)
 }
@@ -213,6 +214,7 @@ func (c *Context) Query(key string) string {
 }
 
 // QueryString returns the value of a given query parameter as a string.
+// Deprecated: Use Query instead.
 func (c *Context) QueryString(key string) string {
 	return c.req.query(key)
 }
@@ -431,7 +433,7 @@ func (c *Context) SetBody(body []byte) {
 }
 
 // JSON writes a JSON response with the given status code and object.
-func (c *Context) JSON(code int, obj interface{}) {
+func (c *Context) JSON(code int, obj any) {
 	encode := json.Marshal
 	if c.App != nil && c.App.Config.JSONEncoder != nil {
 		encode = c.App.Config.JSONEncoder
@@ -454,7 +456,7 @@ func (c *Context) Text(code int, text string) {
 }
 
 // HTML writes an HTML response with the given status code, template name, and data.
-func (c *Context) HTML(code int, name string, data interface{}) {
+func (c *Context) HTML(code int, name string, data any) {
 	c.SetHeader(HeaderContentType, MIMETextHTML)
 	c.SetStatus(code)
 
@@ -466,7 +468,7 @@ func (c *Context) HTML(code int, name string, data interface{}) {
 }
 
 // XML writes an XML response with the given status code and object.
-func (c *Context) XML(code int, obj interface{}) {
+func (c *Context) XML(code int, obj any) {
 	encodeData, err := xml.Marshal(obj)
 	if err != nil {
 		panic(err)
@@ -483,12 +485,12 @@ func (c *Context) File(filepath string) error {
 }
 
 // GetData returns the value of a custom data field for the context.
-func (c *Context) GetData(key string) interface{} {
+func (c *Context) GetData(key string) any {
 	return c.data.get(key)
 }
 
 // SetData sets the value of a custom data field for the context.
-func (c *Context) SetData(key string, value interface{}) {
+func (c *Context) SetData(key string, value any) {
 	c.data.set(key, value)
 }
 
@@ -518,8 +520,8 @@ func (c *Context) RemoteAddr() string {
 }
 
 // Success writes a successful response with the given data.
-func (c *Context) Success(data interface{}) {
-	c.JSON(http.StatusOK, map[string]interface{}{
+func (c *Context) Success(data any) {
+	c.JSON(http.StatusOK, map[string]any{
 		"code":    0,
 		"message": "ok",
 		"data":    data,
@@ -528,7 +530,7 @@ func (c *Context) Success(data interface{}) {
 
 // Fail writes a failed response with the given code and message.
 func (c *Context) Fail(code int, message string) {
-	c.JSON(http.StatusOK, map[string]interface{}{
+	c.JSON(http.StatusOK, map[string]any{
 		"code":    code,
 		"message": message,
 	})
