@@ -32,11 +32,10 @@ type Application struct {
 
 	Logger *lightlog.ConsoleLogger
 
-	server *http.Server
-	mu     sync.Mutex
+	server     *http.Server
+	mu         sync.Mutex
+	contextPool sync.Pool
 }
-
-var logger = lightlog.NewConsoleLogger("appLogger", lightlog.TRACE)
 
 type Config struct {
 	AppName           string
@@ -76,7 +75,7 @@ func defaultConfig() *Config {
 		JSONEncoder:     json.Marshal,
 		JSONDecoder:     json.Unmarshal,
 		NotFoundHandler: defaultNotFound,
-		EnableDebug:     true,
+		EnableDebug:     false,
 	}
 }
 
@@ -86,11 +85,16 @@ func NewApp(c ...*Config) *Application {
 	config = config.merge(c...)
 
 	app := &Application{
-		Config:      config,
-		router:      newRouter(),
-		middlewares: make([]HandlerFunc, 0),
-		Logger:      logger,
+		Config:    config,
+		router:    newRouter(),
+		Logger:     lightlog.NewConsoleLogger(config.AppName, lightlog.TRACE),
+		contextPool: sync.Pool{
+			New: func() interface{} {
+				return &Context{index: -1}
+			},
+		},
 	}
+	app.middlewares = make([]HandlerFunc, 0)
 
 	if app.Config.EnableDebug {
 		app.Get("/__debug__/router_map", func(ctx *Context) {
@@ -216,13 +220,9 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		req.Body = http.MaxBytesReader(w, req.Body, app.Config.MaxRequestBodySize)
 	}
 
-	// Create a new context
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer ctx.flush()
+	// Get context from pool
+	ctx := app.acquireContext(w, req)
+	defer app.releaseContext(ctx)
 
 	// Find the matching route and set the handlers and paramsMap in the context
 	handlers, params := app.router.findRoute(ctx.Method, ctx.Path)
@@ -240,6 +240,32 @@ func (app *Application) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// Execute the middleware chain
 	ctx.Next()
+	ctx.flush()
+}
+
+// acquireContext gets a Context from the pool and initializes it.
+func (app *Application) acquireContext(w http.ResponseWriter, req *http.Request) *Context {
+	r, err := newRequest(req)
+	if err != nil {
+		panic(err)
+	}
+
+	ctx := app.contextPool.Get().(*Context)
+	ctx.Req = req
+	ctx.Res = w
+	ctx.req = r
+	ctx.res = newResponse(req, w)
+	ctx.Method = r.method
+	ctx.Path = r.path
+	ctx.App = app
+
+	return ctx
+}
+
+// releaseContext resets and returns the Context to the pool.
+func (app *Application) releaseContext(ctx *Context) {
+	ctx.reset()
+	app.contextPool.Put(ctx)
 }
 
 // Run starts the HTTP server and listens for incoming requests.

@@ -24,6 +24,21 @@ type Context struct {
 	skipFlush bool
 }
 
+// reset resets the Context to its zero state for reuse.
+func (c *Context) reset() {
+	c.App = nil
+	c.Req = nil
+	c.Res = nil
+	c.req = nil
+	c.res = nil
+	c.data = nil
+	c.handlers = nil
+	c.index = -1
+	c.Method = ""
+	c.Path = ""
+	c.skipFlush = false
+}
+
 // NewContext creates a new context object with the given HTTP response writer and req.
 func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
 	request, err := newRequest(req)
