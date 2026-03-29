@@ -6,12 +6,15 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
+	"syscall"
 	"text/template"
+	"time"
 
 	"github.com/go-labx/lightlog"
 )
@@ -304,4 +307,54 @@ func (app *Application) Shutdown(ctx context.Context) error {
 		return nil
 	}
 	return server.Shutdown(ctx)
+}
+
+// RunGraceful starts the HTTP server with graceful shutdown support.
+// It listens for SIGINT and SIGTERM signals to trigger graceful shutdown.
+// The shutdownTimeout specifies the maximum duration to wait for active connections to finish.
+func (app *Application) RunGraceful(shutdownTimeout time.Duration, address ...string) error {
+	addr := resolveAddress(address)
+	app.Logger.Info("Starting application on address `%s` 🚀🚀🚀", addr)
+
+	app.mu.Lock()
+	app.server = &http.Server{
+		Addr:    addr,
+		Handler: app,
+	}
+	app.mu.Unlock()
+
+	// Channel to listen for shutdown signals
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	// Channel to receive server errors
+	serverErr := make(chan error, 1)
+
+	go func() {
+		serverErr <- app.server.ListenAndServe()
+	}()
+
+	// Wait for either interrupt signal or server error
+	select {
+	case sig := <-quit:
+		app.Logger.Info("Received signal %v, shutting down gracefully...", sig)
+		if shutdownTimeout <= 0 {
+			shutdownTimeout = 5 * time.Second
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := app.Shutdown(ctx); err != nil {
+			app.Logger.Error("Error during graceful shutdown: %v", err)
+			return err
+		}
+		app.Logger.Info("Server stopped gracefully")
+		return nil
+
+	case err := <-serverErr:
+		if err != nil && err != http.ErrServerClosed {
+			return err
+		}
+		return nil
+	}
 }
