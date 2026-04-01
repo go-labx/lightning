@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 	"text/template"
+	"time"
 
 	"github.com/valyala/fasthttp"
 )
@@ -332,6 +333,57 @@ func TestConfigMerge(t *testing.T) {
 	merged := config1.merge(config2)
 	if merged.AppName != "app2" {
 		t.Errorf("Expected AppName 'app2', got '%s'", merged.AppName)
+	}
+}
+
+func TestConfigMergeJSONEncoder(t *testing.T) {
+	cfg := &Config{}
+	encoder := func(v interface{}) ([]byte, error) { return []byte("{}"), nil }
+	merged := cfg.merge(&Config{JSONEncoder: encoder})
+	if merged.JSONEncoder == nil {
+		t.Error("Expected JSONEncoder to be set")
+	}
+}
+
+func TestConfigMergeJSONDecoder(t *testing.T) {
+	cfg := &Config{}
+	decoder := func(data []byte, v interface{}) error { return nil }
+	merged := cfg.merge(&Config{JSONDecoder: decoder})
+	if merged.JSONDecoder == nil {
+		t.Error("Expected JSONDecoder to be set")
+	}
+}
+
+func TestConfigMergeNotFoundHandler(t *testing.T) {
+	cfg := &Config{}
+	handler := func(c *Context) {}
+	merged := cfg.merge(&Config{NotFoundHandler: handler})
+	if merged.NotFoundHandler == nil {
+		t.Error("Expected NotFoundHandler to be set")
+	}
+}
+
+func TestConfigMergeMaxRequestBodySize(t *testing.T) {
+	cfg := &Config{}
+	merged := cfg.merge(&Config{MaxRequestBodySize: 4096})
+	if merged.MaxRequestBodySize != 4096 {
+		t.Errorf("Expected MaxRequestBodySize 4096, got %d", merged.MaxRequestBodySize)
+	}
+}
+
+func TestConfigMergeMaxRequestBodySizeZero(t *testing.T) {
+	cfg := &Config{MaxRequestBodySize: 1024}
+	merged := cfg.merge(&Config{MaxRequestBodySize: 0})
+	if merged.MaxRequestBodySize != 1024 {
+		t.Errorf("Expected MaxRequestBodySize 1024, got %d", merged.MaxRequestBodySize)
+	}
+}
+
+func TestConfigMergeNilInMiddle(t *testing.T) {
+	cfg := &Config{AppName: "original"}
+	merged := cfg.merge(&Config{AppName: "first"}, nil, &Config{AppName: "second"})
+	if merged.AppName != "second" {
+		t.Errorf("Expected AppName 'second', got '%s'", merged.AppName)
 	}
 }
 
@@ -1105,5 +1157,86 @@ func TestResponseFlushEmpty(t *testing.T) {
 
 	if ctx.Response.StatusCode() != StatusNotFound {
 		t.Errorf("Expected default status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
+	}
+}
+
+func TestStaticRelativePath(t *testing.T) {
+	app := NewApp()
+	app.Static("assets", "/static")
+
+	ctx := createFasthttpRequest(MethodGet, "/static/test.txt")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("Expected status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
+	}
+}
+
+func TestShutdownWithNilServer(t *testing.T) {
+	app := NewApp()
+
+	app.Shutdown()
+}
+
+func TestShutdownWithServer(t *testing.T) {
+	app := NewApp()
+	app.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "ok")
+	})
+
+	go func() {
+		_ = app.Run(":0")
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	app.Shutdown()
+}
+
+func TestRunGracefulWithZeroTimeout(t *testing.T) {
+	app := NewApp()
+	app.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "ok")
+	})
+
+	go func() {
+		_ = app.RunGraceful(0, ":0")
+	}()
+
+	time.Sleep(50 * time.Millisecond)
+
+	app.Shutdown()
+}
+
+func TestContextResetClearsData(t *testing.T) {
+	app := NewApp()
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	c := app.acquireContext(ctx)
+
+	c.SetData("key", "value")
+	if c.GetData("key") != "value" {
+		t.Error("Expected data to be set")
+	}
+
+	app.releaseContext(c)
+
+	c2 := app.acquireContext(createFasthttpRequest(MethodGet, "/test2"))
+	if c2.GetData("key") != nil {
+		t.Error("Expected data to be cleared after reset")
+	}
+	app.releaseContext(c2)
+}
+
+func TestServeRequestWithNotFoundRoute(t *testing.T) {
+	app := NewApp()
+	app.Use(func(c *Context) {
+		c.Next()
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/nonexistent")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("Expected status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
 	}
 }
