@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"bytes"
+	"encoding/json"
 	"os"
 	"reflect"
 	"strings"
@@ -978,4 +979,714 @@ func TestSkipFlush(t *testing.T) {
 	c.SkipFlush()
 
 	c.flush()
+}
+
+func TestContext_Cookies(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+	ctx.Request.Header.SetCookie("session", "abc")
+	ctx.Request.Header.SetCookie("theme", "dark")
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+	}
+	c.req = newRequest(ctx)
+
+	cookies := c.Cookies()
+	if len(cookies) == 0 {
+		t.Error("Expected cookies to be non-empty")
+	}
+}
+
+func TestContext_RemoteAddr(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+	}
+	c.req = newRequest(ctx)
+
+	addr := c.RemoteAddr()
+	if addr == "" {
+		t.Error("Expected non-empty remote address")
+	}
+}
+
+func TestContext_RemoteAddrWithXRealIP(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+	ctx.Request.Header.Set("X-Real-IP", "1.2.3.4")
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+	}
+	c.req = newRequest(ctx)
+
+	addr := c.RemoteAddr()
+	if addr != "1.2.3.4" {
+		t.Errorf("Expected X-Real-IP, got %s", addr)
+	}
+}
+
+func TestContext_RemoteAddrWithXForwardedFor(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+	ctx.Request.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+	}
+	c.req = newRequest(ctx)
+
+	addr := c.RemoteAddr()
+	if addr != "1.2.3.4" {
+		t.Errorf("Expected first IP from X-Forwarded-For, got %s", addr)
+	}
+}
+
+func TestContext_JSONBodyWithCustomDecoder(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("POST")
+	ctx.Request.Header.SetRequestURI("/test")
+	ctx.Request.SetBody([]byte(`{"name":"custom"}`))
+
+	app := NewApp()
+	called := false
+	app.Config.JSONDecoder = func(data []byte, v any) error {
+		called = true
+		return json.Unmarshal(data, v)
+	}
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+		App:   app,
+	}
+	c.req = newRequest(ctx)
+	c.res = newResponse(ctx)
+	c.Method = c.req.method()
+	c.Path = c.req.path()
+
+	var result map[string]string
+	err := c.JSONBody(&result)
+	if err != nil {
+		t.Fatalf("JSONBody returned error: %v", err)
+	}
+	if !called {
+		t.Error("Expected custom decoder to be called")
+	}
+	if result["name"] != "custom" {
+		t.Errorf("Expected name 'custom', got '%s'", result["name"])
+	}
+}
+
+func TestContext_JSONWithCustomEncoder(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+
+	app := NewApp()
+	app.Config.JSONEncoder = func(v any) ([]byte, error) {
+		return []byte(`{"custom":true}`), nil
+	}
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+		App:   app,
+	}
+	c.req = newRequest(ctx)
+	c.res = newResponse(ctx)
+	c.Method = c.req.method()
+	c.Path = c.req.path()
+
+	c.JSON(StatusOK, map[string]bool{"test": true})
+	c.flush()
+
+	if string(c.res.body) != `{"custom":true}` {
+		t.Errorf("Expected custom encoded body, got %s", string(c.res.body))
+	}
+}
+
+func TestContext_HTMLWithTemplateError(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "templates_error")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := os.WriteFile(tmpDir+"/bad.html", []byte("<html>{{.Name}}</html>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewApp()
+	app.SetFuncMap(template.FuncMap{})
+	app.LoadHTMLGlob(tmpDir + "/*.html")
+
+	app.Get("/bad", func(ctx *Context) {
+		ctx.HTML(StatusOK, "bad.html", nil)
+	})
+
+	c := newTestCtxForApp(MethodGet, "/bad")
+	app.serveRequest(c)
+
+	if c.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, c.Response.StatusCode())
+	}
+}
+
+func TestContext_XMLWithMarshalError(t *testing.T) {
+	c, _ := createTestContext("GET", "/xml", nil)
+
+	type BadXML struct {
+		Ch chan int `xml:"ch"`
+	}
+	c.XML(StatusOK, &BadXML{Ch: make(chan int)})
+	c.flush()
+
+	if len(c.res.body) != 0 {
+		t.Errorf("Expected empty body for XML marshal error, got %s", string(c.res.body))
+	}
+}
+
+func TestContext_QueryInt8Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryInt8("key")
+	if err == nil {
+		t.Error("Expected error for invalid int8")
+	}
+}
+
+func TestContext_QueryInt32Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryInt32("key")
+	if err == nil {
+		t.Error("Expected error for invalid int32")
+	}
+}
+
+func TestContext_QueryInt64Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryInt64("key")
+	if err == nil {
+		t.Error("Expected error for invalid int64")
+	}
+}
+
+func TestContext_QueryUIntError(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryUInt("key")
+	if err == nil {
+		t.Error("Expected error for invalid uint")
+	}
+}
+
+func TestContext_QueryUInt8Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryUInt8("key")
+	if err == nil {
+		t.Error("Expected error for invalid uint8")
+	}
+}
+
+func TestContext_QueryUInt32Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryUInt32("key")
+	if err == nil {
+		t.Error("Expected error for invalid uint32")
+	}
+}
+
+func TestContext_QueryUInt64Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryUInt64("key")
+	if err == nil {
+		t.Error("Expected error for invalid uint64")
+	}
+}
+
+func TestContext_QueryFloat32Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryFloat32("key")
+	if err == nil {
+		t.Error("Expected error for invalid float32")
+	}
+}
+
+func TestContext_QueryFloat64Error(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=invalid", nil)
+
+	_, err := c.QueryFloat64("key")
+	if err == nil {
+		t.Error("Expected error for invalid float64")
+	}
+}
+
+func TestContext_QueryBoolEmpty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryBool("key")
+	if err != nil {
+		t.Errorf("QueryBool returned error: %v", err)
+	}
+	if got != false {
+		t.Errorf("Expected false for empty key, got %v", got)
+	}
+}
+
+func TestContext_QueryIntEmpty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryInt("key")
+	if err != nil {
+		t.Errorf("QueryInt returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryInt8Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryInt8("key")
+	if err != nil {
+		t.Errorf("QueryInt8 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryInt32Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryInt32("key")
+	if err != nil {
+		t.Errorf("QueryInt32 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryInt64Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryInt64("key")
+	if err != nil {
+		t.Errorf("QueryInt64 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryUIntEmpty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryUInt("key")
+	if err != nil {
+		t.Errorf("QueryUInt returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryUInt8Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryUInt8("key")
+	if err != nil {
+		t.Errorf("QueryUInt8 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryUInt32Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryUInt32("key")
+	if err != nil {
+		t.Errorf("QueryUInt32 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryUInt64Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryUInt64("key")
+	if err != nil {
+		t.Errorf("QueryUInt64 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %d", got)
+	}
+}
+
+func TestContext_QueryFloat32Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryFloat32("key")
+	if err != nil {
+		t.Errorf("QueryFloat32 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %f", got)
+	}
+}
+
+func TestContext_QueryFloat64Empty(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryFloat64("key")
+	if err != nil {
+		t.Errorf("QueryFloat64 returned error: %v", err)
+	}
+	if got != 0 {
+		t.Errorf("Expected 0 for empty key, got %f", got)
+	}
+}
+
+func TestContext_setParams(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	params := map[string]string{"id": "123", "name": "test"}
+	c.setParams(params)
+
+	if c.Param("id") != "123" {
+		t.Errorf("Expected param id=123, got %s", c.Param("id"))
+	}
+	if c.Param("name") != "test" {
+		t.Errorf("Expected param name=test, got %s", c.Param("name"))
+	}
+}
+
+func TestContext_setHandlers(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	handlers := []HandlerFunc{
+		func(c *Context) {},
+		func(c *Context) {},
+		func(c *Context) {},
+	}
+	c.setHandlers(handlers)
+
+	if len(c.handlers) != 3 {
+		t.Errorf("Expected 3 handlers, got %d", len(c.handlers))
+	}
+}
+
+func TestContext_setApp(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	app := NewApp()
+	c.setApp(app)
+
+	if c.App != app {
+		t.Error("App not set correctly")
+	}
+}
+
+func TestContext_NextNoMoreHandlers(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.index = 0
+
+	c.Next()
+
+	if c.index != 1 {
+		t.Errorf("Expected index to be 1, got %d", c.index)
+	}
+}
+
+func TestContext_StringBodyEmpty(t *testing.T) {
+	c, _ := createTestContext("POST", "/test", nil)
+
+	body := c.StringBody()
+	if body != "" {
+		t.Errorf("Expected empty body, got %s", body)
+	}
+}
+
+func TestContext_JSONBodyEmpty(t *testing.T) {
+	c, _ := createTestContext("POST", "/test", nil)
+
+	var result map[string]string
+	err := c.JSONBody(&result)
+	if err == nil {
+		t.Error("Expected error for empty body")
+	}
+}
+
+func TestContext_Body(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	body := []byte("response body")
+	c.SetBody(body)
+
+	if !bytes.Equal(c.Body(), body) {
+		t.Errorf("Expected body %v, got %v", body, c.Body())
+	}
+}
+
+func TestContext_DelHeader(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SetHeader("X-Custom", "value")
+	c.DelHeader("X-Custom")
+
+	if got := string(c.ctx.Response.Header.Peek("X-Custom")); got != "" {
+		t.Errorf("Expected header to be deleted, got %s", got)
+	}
+}
+
+func TestContext_SetCookie(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SetCookie("session", "abc123")
+	c.flush()
+
+	cookie := string(c.ctx.Response.Header.Peek("Set-Cookie"))
+	if !strings.Contains(cookie, "session=abc123") {
+		t.Errorf("Expected cookie to contain 'session=abc123', got %s", cookie)
+	}
+}
+
+func TestContext_AddHeader(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.AddHeader("X-Custom", "value1")
+
+	hdr := string(c.ctx.Response.Header.Peek("X-Custom"))
+	if hdr == "" {
+		t.Error("Expected header to be set")
+	}
+}
+
+func TestContext_SetHeader(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SetHeader("Content-Type", "text/plain")
+
+	if got := string(c.ctx.Response.Header.Peek("Content-Type")); got != "text/plain" {
+		t.Errorf("Expected 'text/plain', got %s", got)
+	}
+}
+
+func TestContext_Header(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("X-Custom", "header-value")
+
+	if got := c.Header("X-Custom"); got != "header-value" {
+		t.Errorf("Expected 'header-value', got %s", got)
+	}
+}
+
+func TestContext_Headers(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("Content-Type", "application/json")
+
+	headers := c.Headers()
+	if len(headers) == 0 {
+		t.Error("Expected headers to be non-empty")
+	}
+}
+
+func TestContext_Text(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.Text(StatusOK, "hello")
+	c.flush()
+
+	if c.Status() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, c.Status())
+	}
+	if string(c.res.body) != "hello" {
+		t.Errorf("Expected body 'hello', got %s", string(c.res.body))
+	}
+}
+
+func TestContext_SetStatus(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SetStatus(StatusCreated)
+
+	if c.Status() != StatusCreated {
+		t.Errorf("Expected status %d, got %d", StatusCreated, c.Status())
+	}
+}
+
+func TestContext_DefaultStatus(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	if c.Status() != StatusNotFound {
+		t.Errorf("Expected default status %d, got %d", StatusNotFound, c.Status())
+	}
+}
+
+func TestContext_CookieNotFound(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	cookie := c.Cookie("nonexistent")
+	if cookie != nil {
+		t.Errorf("Expected nil for nonexistent cookie, got %v", cookie)
+	}
+}
+
+func TestContext_DelData(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SetData("key", "value")
+	c.DelData("key")
+
+	if c.GetData("key") != nil {
+		t.Error("Expected nil after DelData")
+	}
+}
+
+func TestContext_Fail(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.Fail(500, "internal error")
+	c.flush()
+
+	if c.Status() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, c.Status())
+	}
+	if !strings.Contains(string(c.res.body), "internal error") {
+		t.Errorf("Expected body to contain 'internal error', got %s", string(c.res.body))
+	}
+}
+
+func TestContext_JSONErrorStatus(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.JSONError(StatusBadRequest, "bad request")
+	c.flush()
+
+	if c.Status() != StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", StatusBadRequest, c.Status())
+	}
+}
+
+func TestContext_IsAjaxTrue(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("X-Requested-With", "XMLHttpRequest")
+
+	if !c.IsAjax() {
+		t.Error("Expected IsAjax to return true")
+	}
+}
+
+func TestContext_IsNotAjax(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	if c.IsAjax() {
+		t.Error("Expected IsAjax to return false")
+	}
+}
+
+func TestContext_IsWebSocketTrue(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("Upgrade", "websocket")
+
+	if !c.IsWebSocket() {
+		t.Error("Expected IsWebSocket to return true")
+	}
+}
+
+func TestContext_IsNotWebSocket(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	if c.IsWebSocket() {
+		t.Error("Expected IsWebSocket to return false")
+	}
+}
+
+func TestContext_ContentTypeSet(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.SetContentType("application/json")
+
+	if c.ContentType() != "application/json" {
+		t.Errorf("Expected 'application/json', got %s", c.ContentType())
+	}
+}
+
+func TestContext_AcceptedLanguagesEmpty(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	langs := c.AcceptedLanguages()
+	if langs != nil {
+		t.Errorf("Expected nil for empty Accept-Language, got %v", langs)
+	}
+}
+
+func TestContext_AcceptedLanguagesMultiple(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("Accept-Language", "en-US, zh-CN, fr")
+
+	langs := c.AcceptedLanguages()
+	if len(langs) != 3 {
+		t.Errorf("Expected 3 languages, got %d", len(langs))
+	}
+}
+
+func TestContext_AcceptedLanguagesWithQuality(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.Set("Accept-Language", "en-US;q=0.9, zh-CN;q=0.8")
+
+	langs := c.AcceptedLanguages()
+	if len(langs) != 2 {
+		t.Errorf("Expected 2 languages, got %d", len(langs))
+	}
+}
+
+func TestContext_FileExists(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	content := []byte("test content")
+	if _, err := tmpFile.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err = c.File(tmpFile.Name())
+	if err != nil {
+		t.Errorf("File() returned error: %v", err)
+	}
 }
