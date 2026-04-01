@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.8.1] - Apr 1, 2026
+
+### Added
+
+- AGENTS.md with comprehensive project guidelines for AI agents
+
+### Changed
+
+- Upgrade Go minimum version requirement to 1.25
+- Upgrade fasthttp from v1.52.0 to v1.69.0
+- Upgrade validator/v10 from v10.12.0 to v10.30.2
+- Upgrade golang.org/x/crypto from v0.19.0 to v0.49.0
+- Upgrade golang.org/x/sys from v0.17.0 to v0.42.0
+- Upgrade golang.org/x/text from v0.14.0 to v0.35.0
+
+### Fixed
+
+- Improved test coverage for lightning.go (Run, Shutdown, Static, Context pooling)
+
+### Performance
+
+- Test coverage improved from 90.1% to 96.0%
+
 ## [0.8.0] - Mar 29, 2026
 
 ### Added
