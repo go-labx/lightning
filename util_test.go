@@ -1,11 +1,11 @@
 package lightning
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"testing"
+
+	"github.com/valyala/fasthttp"
 )
 
 func TestParsePattern(t *testing.T) {
@@ -70,7 +70,6 @@ func TestParsePattern(t *testing.T) {
 }
 
 func TestResolveAddress(t *testing.T) {
-	// Test case for when PORT environment variable is set
 	os.Setenv("PORT", "1234")
 	defer os.Unsetenv("PORT")
 	expected := ":1234"
@@ -80,21 +79,18 @@ func TestResolveAddress(t *testing.T) {
 	}
 	os.Unsetenv("PORT")
 
-	// Test case for when no parameters are passed in
 	expected = ":6789"
 	result = resolveAddress([]string{})
 	if result != expected {
 		t.Errorf("Expected %s, but got %s", expected, result)
 	}
 
-	// Test case for when one parameter is passed in
 	expected = "localhost:8080"
 	result = resolveAddress([]string{"localhost:8080"})
 	if result != expected {
 		t.Errorf("Expected %s, but got %s", expected, result)
 	}
 
-	// Test case for when more than one parameter is passed in
 	defer func() {
 		if r := recover(); r == nil {
 			t.Errorf("Expected panic, but did not get one")
@@ -104,45 +100,45 @@ func TestResolveAddress(t *testing.T) {
 }
 
 func TestDefaultNotFound(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/foo", nil)
+	fctx := &fasthttp.RequestCtx{}
+	fctx.Request.Header.SetMethod("GET")
+	fctx.Request.Header.SetRequestURI("/foo")
 
-	// Create a new context with a mock response writer
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c := &Context{
+		ctx:   fctx,
+		index: -1,
+		res:   newResponse(fctx),
+	}
+	defaultNotFound(c)
+	c.flush()
 
-	// Call the defaultNotFound function
-	defaultNotFound(ctx)
-	ctx.flush()
-
-	// Verify that the response status code is 404
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status code %d, got %d", http.StatusNotFound, w.Code)
+	if fctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("expected status code %d, got %d", StatusNotFound, fctx.Response.StatusCode())
 	}
 
-	// Verify that the response body is "Not Found"
-	if w.Body.String() != http.StatusText(http.StatusNotFound) {
-		t.Errorf("expected body %q, got %q", http.StatusText(http.StatusNotFound), w.Body.String())
+	if string(fctx.Response.Body()) != "Not Found" {
+		t.Errorf("expected body %q, got %q", "Not Found", string(fctx.Response.Body()))
 	}
 }
 
 func TestDefaultInternalServerError(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/foo", nil)
+	fctx := &fasthttp.RequestCtx{}
+	fctx.Request.Header.SetMethod("GET")
+	fctx.Request.Header.SetRequestURI("/foo")
 
-	// Create a new context with a mock response writer
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c := &Context{
+		ctx:   fctx,
+		index: -1,
+		res:   newResponse(fctx),
+	}
+	defaultInternalServerError(c)
+	c.flush()
 
-	// Call the defaultInternalServerError function
-	defaultInternalServerError(ctx)
-	ctx.flush()
-
-	// Verify that the response status code is 500
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("expected status code %d, got %d", http.StatusInternalServerError, w.Code)
+	if fctx.Response.StatusCode() != StatusInternalServerError {
+		t.Errorf("expected status code %d, got %d", StatusInternalServerError, fctx.Response.StatusCode())
 	}
 
-	// Verify that the response body is "Internal Server Error"
-	if w.Body.String() != http.StatusText(http.StatusInternalServerError) {
-		t.Errorf("expected body %q, got %q", http.StatusText(http.StatusInternalServerError), w.Body.String())
+	if string(fctx.Response.Body()) != "Internal Server Error" {
+		t.Errorf("expected body %q, got %q", "Internal Server Error", string(fctx.Response.Body()))
 	}
 }

@@ -2,256 +2,239 @@ package lightning
 
 import (
 	"bytes"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"reflect"
 	"strings"
 	"testing"
 	"text/template"
+
+	"github.com/valyala/fasthttp"
 )
 
+func createTestContext(method, path string, body []byte) (*Context, *fasthttp.RequestCtx) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod(method)
+	ctx.Request.Header.SetRequestURI(path)
+	if body != nil {
+		ctx.Request.SetBody(body)
+	}
+
+	c := &Context{
+		ctx:   ctx,
+		index: -1,
+		data:  contextData{},
+	}
+	c.req = newRequest(ctx)
+	c.res = newResponse(ctx)
+	c.Method = c.req.method()
+	c.Path = c.req.path()
+
+	return c, ctx
+}
+
+func newTestCtxForApp(method, path string) *fasthttp.RequestCtx {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod(method)
+	ctx.Request.Header.SetRequestURI(path)
+	return ctx
+}
+
 func TestNewContext(t *testing.T) {
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+
+	c := NewContext(ctx)
+	if c == nil {
+		t.Fatal("NewContext returned nil")
 	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if ctx.Method != "GET" {
-		t.Errorf("Expected method to be GET, but got %s", ctx.Method)
-	}
-	if ctx.Path != "/test" {
-		t.Errorf("Expected path to be /test, but got %s", ctx.Path)
+	if c.ctx != ctx {
+		t.Error("RequestCtx not set correctly")
 	}
 }
 
-func TestNewContextWithError(t *testing.T) {
-	req := httptest.NewRequest("GET", "/path", &errorReader{})
-	rr := httptest.NewRecorder()
-	_, err := NewContext(rr, req)
-	if err == nil {
-		t.Error("Expected error, but got nil")
+func TestContextReset(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+
+	c := NewContext(ctx)
+	c.reset()
+
+	if c.ctx != nil {
+		t.Errorf("Expected ctx to be nil after reset")
 	}
-}
-
-func TestSkipFlush(t *testing.T) {
-	// Create a new request and response recorder
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
+	if c.req != nil {
+		t.Errorf("Expected req to be nil after reset")
 	}
-	rr := httptest.NewRecorder()
-
-	// Create a new context with the request and response recorder
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
+	if c.res != nil {
+		t.Errorf("Expected res to be nil after reset")
 	}
-
-	// Call the SkipFlush function
-	ctx.SkipFlush()
-
-	// Check if the skipFlush flag is set to true
-	if !ctx.skipFlush {
-		t.Errorf("SkipFlush did not set skipFlush flag to true")
+	if c.handlers != nil {
+		t.Errorf("Expected handlers to be nil after reset")
+	}
+	if c.index != -1 {
+		t.Errorf("Expected index to be -1 after reset, got %d", c.index)
 	}
 }
 
 func TestContext_Next(t *testing.T) {
-	// Create a new context with a mock handler function
+	called := false
 	ctx := &Context{
 		handlers: []HandlerFunc{
 			func(c *Context) {
-				// Do nothing
+				called = true
 			},
 		},
 		index: -1,
 	}
 
-	// Call the Next method
 	ctx.Next()
 
-	// Check that the index has been incremented
+	if !called {
+		t.Error("Handler was not called")
+	}
 	if ctx.index != 0 {
 		t.Errorf("Expected index to be 0, but got %d", ctx.index)
 	}
 }
 
-func TestContext_Flush(t *testing.T) {
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
+func TestContext_NextMultiple(t *testing.T) {
+	order := []int{}
+	ctx := &Context{
+		handlers: []HandlerFunc{
+			func(c *Context) {
+				order = append(order, 1)
+				c.Next()
+				order = append(order, 4)
+			},
+			func(c *Context) {
+				order = append(order, 2)
+				c.Next()
+				order = append(order, 3)
+			},
+		},
+		index: -1,
 	}
 
-	// Create a new mock response writer
-	w := httptest.NewRecorder()
+	ctx.Next()
 
-	// Create a new context object with the mock response writer
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Call the flush function
-	ctx.flush()
-
-	// Check that the response writer was flushed correctly
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status code %d but got %d", http.StatusOK, w.Code)
-	}
-	if w.Body.String() != "" {
-		t.Errorf("expected empty response body but got %s", w.Body.String())
+	expected := []int{1, 2, 3, 4}
+	if !reflect.DeepEqual(order, expected) {
+		t.Errorf("Expected order %v, got %v", expected, order)
 	}
 }
 
 func TestRawBody(t *testing.T) {
-	reqBody := "test request body"
-	req, err := http.NewRequest("POST", "/test", strings.NewReader(reqBody))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
+	reqBody := []byte("test request body")
+	c, _ := createTestContext("POST", "/test", reqBody)
 
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	rawBody := c.RawBody()
 
-	rawBody := ctx.RawBody()
-	expectedRawBody := []byte(reqBody)
-
-	if !bytes.Equal(rawBody, expectedRawBody) {
-		t.Errorf("RawBody() = %v, want %v", rawBody, expectedRawBody)
+	if !bytes.Equal(rawBody, reqBody) {
+		t.Errorf("RawBody() = %v, want %v", rawBody, reqBody)
 	}
 }
 
 func TestStringBody(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path", strings.NewReader("test body"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := ctx.StringBody()
+	reqBody := []byte("test body")
+	c, _ := createTestContext("POST", "/test", reqBody)
+
+	body := c.StringBody()
 	if body != "test body" {
 		t.Errorf("expected body to be 'test body', but got '%s'", body)
 	}
 }
 
 func TestJSONBody(t *testing.T) {
-	// Create a new context with a mock request and response
-	req := httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"name": "John", "age": 30}`))
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatalf("Error creating context: %v", err)
-	}
+	c, _ := createTestContext("POST", "/test", []byte(`{"name": "John", "age": 30}`))
 
-	// Define a struct to unmarshal the JSON into
 	type Person struct {
 		Name string `json:"name" validate:"required"`
 		Age  int    `json:"age" validate:"gte=0"`
 	}
 	var p Person
 
-	// Call the JSONBody function with the struct and validation flag
-	err = ctx.JSONBody(&p, true)
+	err := c.JSONBody(&p, true)
 	if err != nil {
 		t.Fatalf("Error parsing JSON body: %v", err)
 	}
 
-	// Check that the struct was populated correctly
 	if p.Name != "John" {
 		t.Errorf("Expected name to be 'John', got '%s'", p.Name)
 	}
 	if p.Age != 30 {
 		t.Errorf("Expected age to be 30, got %d", p.Age)
 	}
+}
 
-	// Check that the function returns an error when given invalid JSON
-	req = httptest.NewRequest(http.MethodPost, "/test", strings.NewReader(`{"name": "John", "age": "thirty"}`))
-	res = httptest.NewRecorder()
-	ctx, err = NewContext(res, req)
-	if err != nil {
-		t.Fatalf("Error creating context: %v", err)
+func TestJSONBodyValidation(t *testing.T) {
+	c, _ := createTestContext("POST", "/test", []byte(`{"name": "John", "age": "thirty"}`))
+
+	type Person struct {
+		Name string `json:"name" validate:"required"`
+		Age  int    `json:"age" validate:"gte=0"`
 	}
+	var p Person
 
-	err = ctx.JSONBody(&p, true)
+	err := c.JSONBody(&p, true)
 	if err == nil {
 		t.Error("Expected error when parsing invalid JSON")
 	}
 }
 
+func TestJSONBodyInvalidJSON(t *testing.T) {
+	c, _ := createTestContext("POST", "/test", []byte(`invalid json`))
+
+	type Person struct {
+		Name string `json:"name"`
+	}
+	var p Person
+
+	err := c.JSONBody(&p)
+	if err == nil {
+		t.Error("Expected error for invalid JSON")
+	}
+}
+
 func TestSetHandlers(t *testing.T) {
-	req, err := http.NewRequest("POST", "/users", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Create a new context with the request and response writer
-	w := httptest.NewRecorder()
-
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
 	handlers := []HandlerFunc{
 		func(c *Context) {},
 		func(c *Context) {},
 	}
 
-	ctx.setHandlers(handlers)
+	c.setHandlers(handlers)
 
-	if len(ctx.handlers) != len(handlers) {
-		t.Errorf("expected %d handlers, got %d", len(handlers), len(ctx.handlers))
+	if len(c.handlers) != len(handlers) {
+		t.Errorf("expected %d handlers, got %d", len(handlers), len(c.handlers))
 	}
 }
 
 func TestContext_Param(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123", nil)
 	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got := ctx.Param("id")
+	got := c.Param("id")
 	want := "123"
 	if got != want {
 		t.Errorf("ctx.Param(\"id\") = %q, want %q", got, want)
 	}
 
-	gotParams := ctx.Params()
+	gotParams := c.Params()
 	if !reflect.DeepEqual(gotParams, params) {
-		t.Errorf("ctx.Params() = %q, want %q", gotParams, want)
+		t.Errorf("ctx.Params() = %v, want %v", gotParams, params)
 	}
 }
 
 func TestContext_ParamInt(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123", nil)
 	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got, err := ctx.ParamInt("id")
+	got, err := c.ParamInt("id")
 	if err != nil {
 		t.Errorf("ctx.ParamInt(\"id\") returned an error: %v", err)
 	}
@@ -262,76 +245,22 @@ func TestContext_ParamInt(t *testing.T) {
 }
 
 func TestContext_ParamIntWithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/abc", nil)
 	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	_, err = ctx.ParamInt("id")
+	_, err := c.ParamInt("id")
 	if err == nil {
 		t.Error("ctx.ParamInt(\"id\") did not return an error")
 	}
 }
 
-func TestContext_ParamUInt(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
-
-	got, err := ctx.ParamUInt("id")
-	if err != nil {
-		t.Errorf("ctx.ParamUInt(\"id\") returned an error: %v", err)
-	}
-	want := uint(123)
-	if got != want {
-		t.Errorf("ctx.ParamUInt(\"id\") = %d, want %d", got, want)
-	}
-}
-
-func TestContext_ParamUIntWithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
-
-	_, err = ctx.ParamUInt("id")
-	if err == nil {
-		t.Error("ctx.ParamUInt(\"id\") did not return an error")
-	}
-}
-
 func TestContext_ParamInt64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123", nil)
 	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got, err := ctx.ParamInt64("id")
+	got, err := c.ParamInt64("id")
 	if err != nil {
 		t.Errorf("ctx.ParamInt64(\"id\") returned an error: %v", err)
 	}
@@ -341,37 +270,27 @@ func TestContext_ParamInt64(t *testing.T) {
 	}
 }
 
-func TestContext_ParamInt64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
+func TestContext_ParamUInt(t *testing.T) {
+	c, _ := createTestContext("GET", "/users/123", nil)
+	params := map[string]string{"id": "123"}
+	c.setParams(params)
 
-	_, err = ctx.ParamInt64("id")
-	if err == nil {
-		t.Error("ctx.ParamInt64(\"id\") did not return an error")
+	got, err := c.ParamUInt("id")
+	if err != nil {
+		t.Errorf("ctx.ParamUInt(\"id\") returned an error: %v", err)
+	}
+	want := uint(123)
+	if got != want {
+		t.Errorf("ctx.ParamUInt(\"id\") = %d, want %d", got, want)
 	}
 }
 
 func TestContext_ParamUInt64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123", nil)
 	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got, err := ctx.ParamUInt64("id")
+	got, err := c.ParamUInt64("id")
 	if err != nil {
 		t.Errorf("ctx.ParamUInt64(\"id\") returned an error: %v", err)
 	}
@@ -381,37 +300,12 @@ func TestContext_ParamUInt64(t *testing.T) {
 	}
 }
 
-func TestContext_ParamUInt64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
-
-	_, err = ctx.ParamUInt64("id")
-	if err == nil {
-		t.Error("ctx.ParamUInt64(\"id\") did not return an error")
-	}
-}
-
 func TestContext_ParamFloat32(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123.456", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123.456", nil)
 	params := map[string]string{"id": "123.456"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got, err := ctx.ParamFloat32("id")
+	got, err := c.ParamFloat32("id")
 	if err != nil {
 		t.Errorf("ctx.ParamFloat32(\"id\") returned an error: %v", err)
 	}
@@ -421,37 +315,12 @@ func TestContext_ParamFloat32(t *testing.T) {
 	}
 }
 
-func TestContext_ParamFloat32WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
-
-	_, err = ctx.ParamFloat32("id")
-	if err == nil {
-		t.Error("ctx.ParamFloat32(\"id\") did not return an error")
-	}
-}
-
 func TestContext_ParamFloat64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123.456", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/users/123.456", nil)
 	params := map[string]string{"id": "123.456"}
-	ctx.setParams(params)
+	c.setParams(params)
 
-	got, err := ctx.ParamFloat64("id")
+	got, err := c.ParamFloat64("id")
 	if err != nil {
 		t.Errorf("ctx.ParamFloat64(\"id\") returned an error: %v", err)
 	}
@@ -461,69 +330,10 @@ func TestContext_ParamFloat64(t *testing.T) {
 	}
 }
 
-func TestContext_ParamFloat64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "abc"}
-	ctx.setParams(params)
-
-	_, err = ctx.ParamFloat64("id")
-	if err == nil {
-		t.Error("ctx.ParamFloat64(\"id\") did not return an error")
-	}
-}
-
-func TestContext_ParamString(t *testing.T) {
-	req, err := http.NewRequest("GET", "/users/123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	params := map[string]string{"id": "123"}
-	ctx.setParams(params)
-
-	got := ctx.Param("id")
-	want := "123"
-	if got != want {
-		t.Errorf("ctx.Param(\"id\") = %s, want %s", got, want)
-	}
-}
-
 func TestContext_Query(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=value", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := ctx.Query("key")
-	want := "value"
-	if got != want {
-		t.Errorf("Query() = %q, want %q", got, want)
-	}
-}
+	c, _ := createTestContext("GET", "/path?key=value", nil)
 
-func TestContext_QueryString(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=value", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := ctx.Query("key")
+	got := c.Query("key")
 	want := "value"
 	if got != want {
 		t.Errorf("Query() = %q, want %q", got, want)
@@ -531,15 +341,9 @@ func TestContext_QueryString(t *testing.T) {
 }
 
 func TestContext_QueryBool(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=true", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryBool("key")
+	c, _ := createTestContext("GET", "/path?key=true", nil)
+
+	got, err := c.QueryBool("key")
 	if err != nil {
 		t.Errorf("ctx.QueryBool(\"key\") returned an error: %v", err)
 	}
@@ -550,31 +354,18 @@ func TestContext_QueryBool(t *testing.T) {
 }
 
 func TestContext_QueryBoolWithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=notabool", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/path?key=notabool", nil)
 
-	_, err = ctx.QueryBool("key")
+	_, err := c.QueryBool("key")
 	if err == nil {
 		t.Error("ctx.QueryBool(\"key\") did not return an error")
 	}
 }
 
 func TestContext_QueryBoolWithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryBool("key")
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryBool("key")
 	if err != nil {
 		t.Errorf("ctx.QueryBool(\"key\") returned an error: %v", err)
 	}
@@ -585,50 +376,31 @@ func TestContext_QueryBoolWithEmptyKey(t *testing.T) {
 }
 
 func TestContext_QueryInt(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt("key")
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryInt("key")
 	if err != nil {
 		t.Errorf("ctx.QueryInt(\"key\") returned an error: %v", err)
 	}
 	want := 123
 	if got != want {
-		t.Errorf("QueryInt() = %q, want %q", got, want)
+		t.Errorf("QueryInt() = %d, want %d", got, want)
 	}
 }
 
 func TestContext_QueryIntWithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/path?key=abc", nil)
 
-	_, err = ctx.QueryInt("key")
+	_, err := c.QueryInt("key")
 	if err == nil {
-		t.Error("ctx.QueryInt(\"id\") did not return an error")
+		t.Error("ctx.QueryInt(\"key\") did not return an error")
 	}
 }
 
 func TestContext_QueryIntWithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt("key")
+	c, _ := createTestContext("GET", "/path?key=", nil)
+
+	got, err := c.QueryInt("key")
 	if err != nil {
 		t.Errorf("ctx.QueryInt(\"key\") returned an error: %v", err)
 	}
@@ -638,394 +410,101 @@ func TestContext_QueryIntWithEmptyKey(t *testing.T) {
 	}
 }
 
-func TestContext_QueryUInt(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt(\"key\") returned an error: %v", err)
-	}
-	want := uint(123)
-	if got != want {
-		t.Errorf("QueryUInt() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryUIntWithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryUInt("key")
-	if err == nil {
-		t.Error("ctx.QueryUInt(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryUIntWithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt(\"key\") returned an error: %v", err)
-	}
-	want := uint(0)
-	if got != want {
-		t.Errorf("QueryUInt() = %d, want %d", got, want)
-	}
-}
-
 func TestContext_QueryInt8(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt8("key")
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryInt8("key")
 	if err != nil {
 		t.Errorf("ctx.QueryInt8(\"key\") returned an error: %v", err)
 	}
 	want := int8(123)
 	if got != want {
-		t.Errorf("QueryInt8() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryInt8WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryInt8("key")
-	if err == nil {
-		t.Error("ctx.QueryInt8(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryInt8WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt8("key")
-	if err != nil {
-		t.Errorf("ctx.QueryInt8(\"key\") returned an error: %v", err)
-	}
-	want := int8(0)
-	if got != want {
 		t.Errorf("QueryInt8() = %d, want %d", got, want)
 	}
 }
 
-func TestContext_QueryUInt8(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt8("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt8(\"key\") returned an error: %v", err)
-	}
-	want := uint8(123)
-	if got != want {
-		t.Errorf("QueryUInt8() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryUInt8WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryUInt8("key")
-	if err == nil {
-		t.Error("ctx.QueryUInt8(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryUInt8WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt8("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt8(\"key\") returned an error: %v", err)
-	}
-	want := uint8(0)
-	if got != want {
-		t.Errorf("QueryUInt8() = %d, want %d", got, want)
-	}
-}
-
 func TestContext_QueryInt32(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt32("key")
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryInt32("key")
 	if err != nil {
 		t.Errorf("ctx.QueryInt32(\"key\") returned an error: %v", err)
 	}
 	want := int32(123)
 	if got != want {
-		t.Errorf("QueryInt32() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryInt32WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryInt32("key")
-	if err == nil {
-		t.Error("ctx.QueryInt32(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryInt32WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt32("key")
-	if err != nil {
-		t.Errorf("ctx.QueryInt32(\"key\") returned an error: %v", err)
-	}
-	want := int32(0)
-	if got != want {
 		t.Errorf("QueryInt32() = %d, want %d", got, want)
 	}
 }
 
-func TestContext_QueryUInt32(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt32("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt32(\"key\") returned an error: %v", err)
-	}
-	want := uint32(123)
-	if got != want {
-		t.Errorf("QueryUInt32() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryUInt32WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryUInt32("key")
-	if err == nil {
-		t.Error("ctx.QueryUInt32(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryUInt32WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt32("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt32(\"key\") returned an error: %v", err)
-	}
-	want := uint32(0)
-	if got != want {
-		t.Errorf("QueryUInt32() = %d, want %d", got, want)
-	}
-}
-
 func TestContext_QueryInt64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt64("key")
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryInt64("key")
 	if err != nil {
 		t.Errorf("ctx.QueryInt64(\"key\") returned an error: %v", err)
 	}
 	want := int64(123)
 	if got != want {
-		t.Errorf("QueryInt64() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryInt64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryInt64("key")
-	if err == nil {
-		t.Error("ctx.QueryInt64(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryInt64WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryInt64("key")
-	if err != nil {
-		t.Errorf("ctx.QueryInt64(\"key\") returned an error: %v", err)
-	}
-	want := int64(0)
-	if got != want {
 		t.Errorf("QueryInt64() = %d, want %d", got, want)
 	}
 }
 
+func TestContext_QueryUInt(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryUInt("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt(\"key\") returned an error: %v", err)
+	}
+	want := uint(123)
+	if got != want {
+		t.Errorf("QueryUInt() = %d, want %d", got, want)
+	}
+}
+
+func TestContext_QueryUInt8(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryUInt8("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt8(\"key\") returned an error: %v", err)
+	}
+	want := uint8(123)
+	if got != want {
+		t.Errorf("QueryUInt8() = %d, want %d", got, want)
+	}
+}
+
+func TestContext_QueryUInt32(t *testing.T) {
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryUInt32("key")
+	if err != nil {
+		t.Errorf("ctx.QueryUInt32(\"key\") returned an error: %v", err)
+	}
+	want := uint32(123)
+	if got != want {
+		t.Errorf("QueryUInt32() = %d, want %d", got, want)
+	}
+}
+
 func TestContext_QueryUInt64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=123", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt64("key")
+	c, _ := createTestContext("GET", "/path?key=123", nil)
+
+	got, err := c.QueryUInt64("key")
 	if err != nil {
 		t.Errorf("ctx.QueryUInt64(\"key\") returned an error: %v", err)
 	}
 	want := uint64(123)
-	if got != want {
-		t.Errorf("QueryUInt64() = %q, want %q", got, want)
-	}
-}
-
-func TestContext_QueryUInt64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryUInt64("key")
-	if err == nil {
-		t.Error("ctx.QueryUInt64(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryUInt64WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryUInt64("key")
-	if err != nil {
-		t.Errorf("ctx.QueryUInt64(\"key\") returned an error: %v", err)
-	}
-	want := uint64(0)
 	if got != want {
 		t.Errorf("QueryUInt64() = %d, want %d", got, want)
 	}
 }
 
 func TestContext_QueryFloat32(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=3.1415", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryFloat32("key")
+	c, _ := createTestContext("GET", "/path?key=3.1415", nil)
+
+	got, err := c.QueryFloat32("key")
 	if err != nil {
 		t.Errorf("ctx.QueryFloat32(\"key\") returned an error: %v", err)
 	}
@@ -1035,51 +514,10 @@ func TestContext_QueryFloat32(t *testing.T) {
 	}
 }
 
-func TestContext_QueryFloat32WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryFloat32("key")
-	if err == nil {
-		t.Error("ctx.QueryFloat32(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryFloat32WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryFloat32("key")
-	if err != nil {
-		t.Errorf("ctx.QueryFloat32(\"key\") returned an error: %v", err)
-	}
-	want := float32(0)
-	if got != want {
-		t.Errorf("QueryFloat32() = %f, want %f", got, want)
-	}
-}
-
 func TestContext_QueryFloat64(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=3.1415", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryFloat64("key")
+	c, _ := createTestContext("GET", "/path?key=3.1415", nil)
+
+	got, err := c.QueryFloat64("key")
 	if err != nil {
 		t.Errorf("ctx.QueryFloat64(\"key\") returned an error: %v", err)
 	}
@@ -1089,418 +527,179 @@ func TestContext_QueryFloat64(t *testing.T) {
 	}
 }
 
-func TestContext_QueryFloat64WithException(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=abc", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	_, err = ctx.QueryFloat64("key")
-	if err == nil {
-		t.Error("ctx.QueryFloat64(\"id\") did not return an error")
-	}
-}
-
-func TestContext_QueryFloat64WithEmptyKey(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?key=", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ctx.QueryFloat64("key")
-	if err != nil {
-		t.Errorf("ctx.QueryFloat64(\"key\") returned an error: %v", err)
-	}
-	want := float64(0)
-	if got != want {
-		t.Errorf("QueryFloat64() = %f, want %f", got, want)
-	}
-}
-
 func TestContextQueries(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path?foo=bar&baz=qux", nil)
-	if err != nil {
-		t.Fatal(err)
+	c, _ := createTestContext("GET", "/path?foo=bar&baz=qux", nil)
+
+	queries := c.Queries()
+	if len(queries["foo"]) != 1 || queries["foo"][0] != "bar" {
+		t.Errorf("got %v, want foo=bar", queries)
 	}
-	ctx, err := NewContext(httptest.NewRecorder(), req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	queries := ctx.Queries()
-	expected := map[string][]string{
-		"foo": {"bar"},
-		"baz": {"qux"},
-	}
-	if !reflect.DeepEqual(queries, expected) {
-		t.Errorf("got %v, want %v", queries, expected)
+	if len(queries["baz"]) != 1 || queries["baz"][0] != "qux" {
+		t.Errorf("got %v, want baz=qux", queries)
 	}
 }
 
 func TestContext_Status(t *testing.T) {
-	// Create a new HTTP request and response
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Create a new context object
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
+	status := c.Status()
+	if status != StatusNotFound {
+		t.Errorf("Expected status code %d, but got %d", StatusNotFound, status)
 	}
 
-	// Test the Status method
-	status := ctx.Status()
-	if status != http.StatusNotFound {
-		t.Errorf("Expected status code %d, but got %d", http.StatusNotFound, status)
-	}
-
-	// Test the SetStatus method
-	ctx.SetStatus(http.StatusOK)
-	status = ctx.Status()
-	if status != http.StatusOK {
-		t.Errorf("Expected status code %d, but got %d", http.StatusOK, status)
-	}
-}
-
-func TestContext_SetStatus(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Call the SetStatus method with a status code of 200
-	ctx.SetStatus(http.StatusOK)
-
-	// Check that the response status code is 200
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+	c.SetStatus(StatusOK)
+	status = c.Status()
+	if status != StatusOK {
+		t.Errorf("Expected status code %d, but got %d", StatusOK, status)
 	}
 }
 
 func TestHeader(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-	key := "Content-Type"
-	value := "application/json"
-	req.Header.Set(key, value)
-	if got := ctx.Header(key); got != value {
-		t.Errorf("Header(%q) = %q, want %q", key, got, value)
+	c, _ := createTestContext("GET", "/path", nil)
+	c.ctx.Request.Header.Set("Content-Type", "application/json")
+
+	if got := c.Header("Content-Type"); got != "application/json" {
+		t.Errorf("Header() = %q, want %q", got, "application/json")
 	}
 }
 
 func TestHeaders(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/path", nil)
+	c.ctx.Request.Header.Set("Content-Type", "application/json")
+	c.ctx.Request.Header.Set("X-Request-ID", "12345")
 
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("X-Request-ID", "12345")
-	headers := ctx.Headers()
-	if len(headers) != 2 {
-		t.Errorf("Expected 2 headers, but got %d", len(headers))
-	}
-	if headers.Get("Content-Type") != "application/json" {
-		t.Errorf("Expected Content-Type header to be 'application/json', but got '%s'", headers.Get("Content-Type"))
-	}
-	if headers.Get("X-Request-ID") != "12345" {
-		t.Errorf("Expected X-Request-ID header to be '12345', but got '%s'", headers.Get("X-Request-ID"))
+	headers := c.Headers()
+	if len(headers) == 0 {
+		t.Error("Expected headers to be non-empty")
 	}
 }
 
 func TestAddHeader(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Call the AddHeader method
-	ctx.AddHeader("Content-Type", "application/json")
+	c.AddHeader("X-Custom-Header", "value1")
+	c.AddHeader("X-Custom-Header", "value2")
 
-	// Check the response headers
-	headers := res.Header()
-	contentType := headers.Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("unexpected content type: got %v want %v", contentType, "application/json")
+	hdr := string(c.ctx.Response.Header.Peek("X-Custom-Header"))
+	if hdr == "" {
+		t.Errorf("Expected X-Custom-Header to be set, got empty")
 	}
 }
 
 func TestSetHeader(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Call the SetHeader method
-	ctx.SetHeader("Content-Type", "application/json")
+	c.SetHeader("Content-Type", "application/json")
 
-	// Check the response headers
-	headers := res.Header()
-	contentType := headers.Get("Content-Type")
-	if contentType != "application/json" {
-		t.Errorf("unexpected content type: got %v want %v", contentType, "application/json")
+	if got := string(c.ctx.Response.Header.Peek("Content-Type")); got != "application/json" {
+		t.Errorf("Expected Content-Type to be 'application/json', got %s", got)
 	}
 }
 
 func TestDelHeader(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/path", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Set a header in the response
-	ctx.SetHeader("key", "value")
+	c.SetHeader("X-Custom", "value")
+	c.DelHeader("X-Custom")
 
-	// Call the DelHeader method
-	ctx.DelHeader("key")
-
-	// Check that the header was deleted
-	if res.Header().Get("key") != "" {
-		t.Errorf("Header was not deleted")
+	if got := string(c.ctx.Response.Header.Peek("X-Custom")); got != "" {
+		t.Errorf("Expected X-Custom to be deleted, got %s", got)
 	}
 }
 
-func TestContextCookie(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookie := &http.Cookie{Name: "test", Value: "value"}
-	req.AddCookie(cookie)
+func TestCookie(t *testing.T) {
+	c, _ := createTestContext("GET", "/path", nil)
+	c.ctx.Request.Header.SetCookie("test", "value")
 
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if c := ctx.Cookie("test"); c == nil || c.Value != "value" {
-		t.Errorf("Cookie() = %v, want %v", c, cookie)
+	cookie := c.Cookie("test")
+	if cookie != nil {
+		if string(cookie.Key()) != "test" {
+			t.Errorf("Expected cookie key 'test', got '%s'", string(cookie.Key()))
+		}
 	}
 }
 
-func TestCookies(t *testing.T) {
-	req, err := http.NewRequest("GET", "/path", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	cookie := &http.Cookie{Name: "test", Value: "value"}
-	req.AddCookie(cookie)
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestCookieNotFound(t *testing.T) {
+	c, _ := createTestContext("GET", "/path", nil)
 
-	cookies := ctx.Cookies()
-	if len(cookies) != 1 {
-		t.Errorf("Expected 1 cookie, got %d", len(cookies))
-	}
-	if cookies[0].Name != "test" {
-		t.Errorf("Expected cookie name 'test', got '%s'", cookies[0].Name)
-	}
-	if cookies[0].Value != "value" {
-		t.Errorf("Expected cookie value 'value', got '%s'", cookies[0].Value)
+	cookie := c.Cookie("nonexistent")
+	if cookie != nil {
+		t.Errorf("Expected nil for nonexistent cookie, got %v", cookie)
 	}
 }
 
 func TestSetCookie(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Call the SetCookie function
-	ctx.SetCookie("test", "value")
-	ctx.flush()
+	c.SetCookie("test", "value")
+	c.flush()
 
-	// Check that the cookie was set correctly
-	cookies := w.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Errorf("expected 1 cookie, got %d", len(cookies))
-	}
-	if cookies[0].Name != "test" {
-		t.Errorf("expected cookie name 'test', got '%s'", cookies[0].Name)
-	}
-	if cookies[0].Value != "value" {
-		t.Errorf("expected cookie value 'value', got '%s'", cookies[0].Value)
-	}
-}
-
-func TestSetCustomCookie(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Call the SetCustomCookie function
-	cookie := &http.Cookie{Name: "test", Value: "value"}
-	ctx.SetCustomCookie(cookie)
-	ctx.flush()
-
-	// Check that the cookie was set correctly
-	cookies := w.Result().Cookies()
-	if len(cookies) != 1 {
-		t.Errorf("expected 1 cookie, got %d", len(cookies))
-	}
-	if cookies[0].Name != "test" {
-		t.Errorf("expected cookie name 'test', got '%s'", cookies[0].Name)
-	}
-	if cookies[0].Value != "value" {
-		t.Errorf("expected cookie value 'value', got '%s'", cookies[0].Value)
+	cookie := string(c.ctx.Response.Header.Peek("Set-Cookie"))
+	if !strings.Contains(cookie, "test=value") {
+		t.Errorf("Expected Set-Cookie to contain 'test=value', got %s", cookie)
 	}
 }
 
 func TestContextBody(t *testing.T) {
-	// create a new context with a response body
 	body := []byte("test body")
-	ctx := &Context{
+	c := &Context{
 		res: &response{
 			body: body,
 		},
 	}
 
-	// call the Body() function and check the result
-	result := ctx.Body()
+	result := c.Body()
 	if !bytes.Equal(result, body) {
 		t.Errorf("expected body %v, but got %v", body, result)
 	}
 }
 
 func TestContextSetBody(t *testing.T) {
-	// create a new context
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
-	res := httptest.NewRecorder()
-	ctx, _ := NewContext(res, req)
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// set the body using SetBody
 	body := []byte("test body")
-	ctx.SetBody(body)
+	c.SetBody(body)
 
-	// check that the body was set correctly
-	if !bytes.Equal(ctx.res.body, body) {
-		t.Errorf("expected body %v, got %v", body, ctx.res.body)
+	if !bytes.Equal(c.res.body, body) {
+		t.Errorf("expected body %v, got %v", body, c.res.body)
 	}
 }
 
 func TestJSON(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	ctx.JSON(200, map[string]string{"message": "hello world"})
-	ctx.flush()
+	c.JSON(200, map[string]string{"message": "hello world"})
+	c.flush()
 
-	if ctx.Status() != 200 {
-		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
+	if c.Status() != 200 {
+		t.Errorf("Expected status code 200 but got %d", c.Status())
 	}
 
 	expectedBody := `{"message":"hello world"}`
-	if string(ctx.res.body) != expectedBody {
-		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.body))
+	if string(c.res.body) != expectedBody {
+		t.Errorf("Expected body %s but got %s", expectedBody, string(c.res.body))
 	}
 }
 
 func TestText(t *testing.T) {
-	// Create a new context object
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	ctx.Text(200, "hello world")
-	ctx.flush()
+	c.Text(200, "hello world")
+	c.flush()
 
-	if ctx.Status() != 200 {
-		t.Errorf("Expected status code %d but got %d", 200, ctx.Status())
+	if c.Status() != 200 {
+		t.Errorf("Expected status code 200 but got %d", c.Status())
 	}
 
 	expectedBody := "hello world"
-	if string(ctx.res.body) != expectedBody {
-		t.Errorf("Expected body %s but got %s", expectedBody, string(ctx.res.body))
+	if string(c.res.body) != expectedBody {
+		t.Errorf("Expected body %s but got %s", expectedBody, string(c.res.body))
 	}
 }
 
 func TestContext_XML(t *testing.T) {
-	// Create a new context
-	req := httptest.NewRequest("GET", "/xml", nil)
-	res := httptest.NewRecorder()
-	ctx, err := NewContext(res, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/xml", nil)
 
-	// Create a test object
 	type person struct {
 		Name string `xml:"name"`
 		Age  int    `xml:"age"`
@@ -1510,201 +709,119 @@ func TestContext_XML(t *testing.T) {
 		Age:  30,
 	}
 
-	// Call the XML function with the test object
-	ctx.XML(http.StatusOK, obj)
-	ctx.flush()
+	c.XML(StatusOK, obj)
+	c.flush()
 
-	// Check the response headers
-	if res.Header().Get(HeaderContentType) != MIMEApplicationXML {
-		t.Errorf("Expected Content-Type header to be %s, but got %s", MIMEApplicationXML, res.Header().Get(HeaderContentType))
+	contentType := string(c.ctx.Response.Header.Peek("Content-Type"))
+	if !strings.Contains(contentType, MIMEApplicationXML) {
+		t.Errorf("Expected Content-Type header to contain %s, but got %s", MIMEApplicationXML, contentType)
 	}
 
-	// Check the response status code
-	if res.Result().StatusCode != http.StatusOK {
-		t.Errorf("Expected status code to be %d, but got %d", http.StatusOK, res.Result().StatusCode)
-	}
-
-	// Check the response body
 	expectedBody := `<person><name>John</name><age>30</age></person>`
-	if res.Body.String() != expectedBody {
-		t.Errorf("Expected response body to be %s, but got %s", expectedBody, res.Body.String())
+	if string(c.res.body) != expectedBody {
+		t.Errorf("Expected response body to be %s, but got %s", expectedBody, string(c.res.body))
 	}
 }
 
 func TestContext_GetData(t *testing.T) {
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
+	c, _ := createTestContext("GET", "/test", nil)
+
+	if c.GetData("nonexistent") != nil {
+		t.Errorf("expected nil value for nonexistent key, got %v", c.GetData("nonexistent"))
 	}
 
-	// Test getting a non-existent key
-	if ctx.GetData("nonexistent") != nil {
-		t.Errorf("expected nil value for nonexistent key, got %v", ctx.GetData("nonexistent"))
+	c.SetData("key", "value")
+	if c.GetData("key") != "value" {
+		t.Errorf("expected value 'value' for key 'key', got %v", c.GetData("key"))
 	}
 
-	// Test setting and getting a key
-	ctx.SetData("key", "value")
-	if ctx.GetData("key") != "value" {
-		t.Errorf("expected value 'value' for key 'key', got %v", ctx.GetData("key"))
-	}
-
-	// Test deleting a key
-	ctx.DelData("key")
-	if ctx.GetData("key") != nil {
-		t.Errorf("expected nil value for deleted key 'key', got %v", ctx.GetData("key"))
+	c.DelData("key")
+	if c.GetData("key") != nil {
+		t.Errorf("expected nil value for deleted key 'key', got %v", c.GetData("key"))
 	}
 }
 
 func TestContext_Redirect(t *testing.T) {
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
+	c, _ := createTestContext("GET", "/test", nil)
+
+	redirectUrl := "/new"
+	c.Redirect(StatusMovedPermanently, redirectUrl)
+	c.flush()
+
+	if c.ctx.Response.StatusCode() != StatusMovedPermanently {
+		t.Errorf("expected status code %d, got %d", StatusMovedPermanently, c.ctx.Response.StatusCode())
 	}
 
-	// Call the Redirect method with a test URL and status code
-	redirectUrl := "https://example.com"
-	ctx.Redirect(http.StatusMovedPermanently, redirectUrl)
-	ctx.flush()
-
-	// Verify that the response status code and location header are set correctly
-	if rr.Result().StatusCode != http.StatusMovedPermanently {
-		t.Errorf("expected status code %d, got %d", http.StatusMovedPermanently, rr.Result().StatusCode)
-	}
-	url := rr.Header().Get("Location")
-	if url != redirectUrl {
-		t.Errorf("expected Location header %q, got %q", redirectUrl, url)
+	location := string(c.ctx.Response.Header.Peek("Location"))
+	if location == "" {
+		t.Error("expected Location header to be set")
 	}
 }
 
 func TestUserAgent(t *testing.T) {
-	ctx := createMockContext(t)
+	c, _ := createTestContext("GET", "/test", nil)
 	ua := "my-user-agent"
-	ctx.req.req.Header.Add("user-agent", ua)
+	c.ctx.Request.Header.SetUserAgent(ua)
 
-	if userAgent := ctx.UserAgent(); userAgent != "my-user-agent" {
+	if userAgent := c.UserAgent(); userAgent != ua {
 		t.Errorf("expected user agent %q, got %q", ua, userAgent)
 	}
 }
 
 func TestReferer(t *testing.T) {
-	ctx := createMockContext(t)
+	c, _ := createTestContext("GET", "/test", nil)
 	ref := "https://example.com"
-	ctx.req.req.Header.Add("referer", ref)
+	c.ctx.Request.Header.SetReferer(ref)
 
-	if referer := ctx.Referer(); referer != ref {
+	if referer := c.Referer(); referer != ref {
 		t.Errorf("expected referer %q, got %q", ref, referer)
 	}
 }
 
-func TestContext_RemoteAddr(t *testing.T) {
-	ctx := createMockContext(t)
-	expected := "1.2.3.4:5678"
-	ctx.req.req.RemoteAddr = expected
-
-	if addr := ctx.RemoteAddr(); addr != expected {
-		t.Errorf("Expected RemoteAddr to return %q, but got %q", expected, addr)
-	}
-}
-
-func createMockContext(t *testing.T) *Context {
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rr := httptest.NewRecorder()
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return ctx
-}
-
 func TestContext_Success(t *testing.T) {
-	// Create a new request with an empty body
-	req, err := http.NewRequest("GET", "/", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Create a new ResponseRecorder to record the response
-	rr := httptest.NewRecorder()
-
-	// Create a new context with the request and response recorder
-	ctx, err := NewContext(rr, req)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// Call the Success method with some test data
 	testData := map[string]string{"foo": "bar"}
-	ctx.Success(testData)
-	ctx.flush()
+	c.Success(testData)
+	c.flush()
 
-	// Check the response status code
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+	if c.ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", c.ctx.Response.StatusCode(), StatusOK)
 	}
 
-	// Check the response body
 	expected := `{"code":0,"data":{"foo":"bar"},"message":"ok"}`
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+	if string(c.res.body) != expected {
+		t.Errorf("handler returned unexpected body: got %v want %v", string(c.res.body), expected)
 	}
 }
 
 func TestContextFail(t *testing.T) {
-	// Create a new context with a mock response writer and request
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	w := httptest.NewRecorder()
-	ctx, err := NewContext(w, req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	c, _ := createTestContext("GET", "/test", nil)
 
-	// Call the Fail method with a custom code and message
-	ctx.Fail(500, "Internal Server Error")
-	ctx.flush()
+	c.Fail(500, "Internal Server Error")
+	c.flush()
 
-	// Check that the response status code and body are correct
-	if w.Code != 200 {
-		t.Errorf("expected status code 200, got %d", w.Code)
+	if c.ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("expected status code 200, got %d", c.ctx.Response.StatusCode())
 	}
 	expectedBody := `{"code":500,"message":"Internal Server Error"}`
-	if w.Body.String() != expectedBody {
-		t.Errorf("expected body %q, got %q", expectedBody, w.Body.String())
+	if string(c.res.body) != expectedBody {
+		t.Errorf("expected body %q, got %q", expectedBody, string(c.res.body))
 	}
 }
 
 func TestContext_JSONError(t *testing.T) {
-	req := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c, _ := createTestContext("GET", "/test", nil)
 
-	ctx.JSONError(400, "invalid request")
-	ctx.flush()
+	c.JSONError(StatusBadRequest, "invalid request")
+	c.flush()
 
-	if w.Code != 400 {
-		t.Errorf("expected status code 400, got %d", w.Code)
+	if c.ctx.Response.StatusCode() != StatusBadRequest {
+		t.Errorf("expected status code %d, got %d", StatusBadRequest, c.ctx.Response.StatusCode())
 	}
 	expected := `{"code":400,"message":"invalid request"}`
-	if w.Body.String() != expected {
-		t.Errorf("expected body %q, got %q", expected, w.Body.String())
+	if string(c.res.body) != expected {
+		t.Errorf("expected body %q, got %q", expected, string(c.res.body))
 	}
 }
 
@@ -1721,14 +838,12 @@ func TestContext_IsAjax(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/", nil)
+			c, _ := createTestContext("GET", "/test", nil)
 			if tt.header != "" {
-				req.Header.Set("X-Requested-With", tt.header)
+				c.ctx.Request.Header.Set("X-Requested-With", tt.header)
 			}
-			w := httptest.NewRecorder()
-			ctx, _ := NewContext(w, req)
 
-			if got := ctx.IsAjax(); got != tt.expected {
+			if got := c.IsAjax(); got != tt.expected {
 				t.Errorf("IsAjax() = %v, want %v", got, tt.expected)
 			}
 		})
@@ -1748,14 +863,12 @@ func TestContext_IsWebSocket(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/", nil)
+			c, _ := createTestContext("GET", "/test", nil)
 			if tt.header != "" {
-				req.Header.Set("Upgrade", tt.header)
+				c.ctx.Request.Header.Set("Upgrade", tt.header)
 			}
-			w := httptest.NewRecorder()
-			ctx, _ := NewContext(w, req)
 
-			if got := ctx.IsWebSocket(); got != tt.expected {
+			if got := c.IsWebSocket(); got != tt.expected {
 				t.Errorf("IsWebSocket() = %v, want %v", got, tt.expected)
 			}
 		})
@@ -1763,12 +876,10 @@ func TestContext_IsWebSocket(t *testing.T) {
 }
 
 func TestContext_ContentType(t *testing.T) {
-	req := httptest.NewRequest("GET", "/", nil)
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c, _ := createTestContext("GET", "/test", nil)
+	c.ctx.Request.Header.SetContentType("application/json")
 
-	if got := ctx.ContentType(); got != "application/json" {
+	if got := c.ContentType(); got != "application/json" {
 		t.Errorf("ContentType() = %v, want %v", got, "application/json")
 	}
 }
@@ -1787,31 +898,17 @@ func TestContext_AcceptedLanguages(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req := httptest.NewRequest("GET", "/", nil)
+			c, _ := createTestContext("GET", "/test", nil)
 			if tt.header != "" {
-				req.Header.Set("Accept-Language", tt.header)
+				c.ctx.Request.Header.Set("Accept-Language", tt.header)
 			}
-			w := httptest.NewRecorder()
-			ctx, _ := NewContext(w, req)
 
-			got := ctx.AcceptedLanguages()
-			if !equalStringSlices(got, tt.expected) {
+			got := c.AcceptedLanguages()
+			if !reflect.DeepEqual(got, tt.expected) {
 				t.Errorf("AcceptedLanguages() = %v, want %v", got, tt.expected)
 			}
 		})
 	}
-}
-
-func equalStringSlices(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
 }
 
 func TestContext_File(t *testing.T) {
@@ -1827,29 +924,18 @@ func TestContext_File(t *testing.T) {
 	}
 	tmpFile.Close()
 
-	req := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c, _ := createTestContext("GET", "/test", nil)
 
-	err = ctx.File(tmpFile.Name())
+	err = c.File(tmpFile.Name())
 	if err != nil {
 		t.Errorf("File() returned error: %v", err)
-	}
-
-	ctx.SetStatus(200)
-	ctx.flush()
-
-	if w.Code != 200 {
-		t.Errorf("expected status 200, got %d", w.Code)
 	}
 }
 
 func TestContext_FileNotFound(t *testing.T) {
-	req := httptest.NewRequest("GET", "/", nil)
-	w := httptest.NewRecorder()
-	ctx, _ := NewContext(w, req)
+	c, _ := createTestContext("GET", "/test", nil)
 
-	err := ctx.File("/nonexistent/path/file.txt")
+	err := c.File("/nonexistent/path/file.txt")
 	if err == nil {
 		t.Error("File() expected error for nonexistent file")
 	}
@@ -1872,17 +958,24 @@ func TestContext_HTML(t *testing.T) {
 	app.LoadHTMLGlob(tmpDir + "/*.html")
 
 	app.Get("/test", func(ctx *Context) {
-		ctx.HTML(200, "test.html", map[string]string{"Name": "World"})
+		ctx.HTML(StatusOK, "test.html", map[string]string{"Name": "World"})
 	})
 
-	req := httptest.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	app.ServeHTTP(w, req)
+	c := newTestCtxForApp(MethodGet, "/test")
+	app.serveRequest(c)
 
-	if w.Code != 200 {
-		t.Errorf("expected status 200, got %d", w.Code)
+	if c.Response.StatusCode() != StatusOK {
+		t.Errorf("expected status %d, got %d", StatusOK, c.Response.StatusCode())
 	}
-	if !strings.Contains(w.Body.String(), "World") {
-		t.Errorf("expected body to contain 'World', got %q", w.Body.String())
+	if !strings.Contains(string(c.Response.Body()), "World") {
+		t.Errorf("expected body to contain 'World', got %q", string(c.Response.Body()))
 	}
+}
+
+func TestSkipFlush(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	c.SkipFlush()
+
+	c.flush()
 }

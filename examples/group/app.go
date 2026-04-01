@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/go-labx/lightning"
 )
@@ -46,14 +45,14 @@ func main() {
 
 	// define a GET route for "/api/user/info"
 	subGroup.Get("/info", func(ctx *lightning.Context) {
-		ctx.JSON(http.StatusOK, map[string]interface{}{
+		ctx.JSON(lightning.StatusOK, map[string]interface{}{
 			"username": "zhangsan",
 			"age":      20,
 		})
 	})
 
 	app.Get("/ping", func(ctx *lightning.Context) {
-		ctx.Text(http.StatusOK, "pong")
+		ctx.Text(lightning.StatusOK, "pong")
 	})
 
 	app.Run()

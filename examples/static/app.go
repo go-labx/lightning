@@ -23,7 +23,7 @@ func main() {
 	app.LoadHTMLGlob("templates/*")
 
 	app.Get("/", func(ctx *lightning.Context) {
-		ctx.HTML(200, "index.tmpl", lightning.Map{
+		ctx.HTML(lightning.StatusOK, "index.tmpl", lightning.Map{
 			"title":       "Lightning",
 			"description": "Lightning is a lightweight and fast web framework for Go. It is designed to be easy to use and highly performant. ⚡️⚡️⚡️",
 			"now":         time.Now(),

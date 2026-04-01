@@ -1,34 +1,35 @@
 package lightning
 
 import (
-	"net/http"
-	"net/http/httptest"
 	"testing"
+
+	"github.com/valyala/fasthttp"
 )
 
 func TestRecovery(t *testing.T) {
 	app := NewApp()
 
 	app.Use(Recovery(func(ctx *Context) {
-		ctx.Text(500, "Internal Server Error")
+		ctx.Text(StatusInternalServerError, "Internal Server Error")
 	}))
 
 	app.Get("/", func(ctx *Context) {
 		panic("test panic")
 	})
 
-	req := httptest.NewRequest("GET", "/", nil)
-	res := httptest.NewRecorder()
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod(MethodGet)
+	ctx.Request.Header.SetRequestURI("/")
 
-	app.ServeHTTP(res, req)
+	app.serveRequest(ctx)
 
-	if status := res.Code; status != http.StatusInternalServerError {
+	if ctx.Response.StatusCode() != StatusInternalServerError {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusInternalServerError)
+			ctx.Response.StatusCode(), StatusInternalServerError)
 	}
 
 	expected := "Internal Server Error"
-	if body := res.Body.String(); body != expected {
+	if body := string(ctx.Response.Body()); body != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			body, expected)
 	}

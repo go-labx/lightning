@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/go-labx/lightning"
 )
@@ -26,7 +25,7 @@ func main() {
 	})
 
 	group.Get("/ping", func(ctx *lightning.Context) {
-		ctx.Text(http.StatusOK, "pong")
+		ctx.Text(lightning.StatusOK, "pong")
 	})
 
 	app.Run()

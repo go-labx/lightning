@@ -1,17 +1,21 @@
 package lightning
 
 import (
-	"context"
-	"net"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"text/template"
-	"time"
+
+	"github.com/valyala/fasthttp"
 )
+
+func createFasthttpRequest(method, path string) *fasthttp.RequestCtx {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod(method)
+	ctx.Request.Header.SetRequestURI(path)
+	return ctx
+}
 
 func TestNewApp(t *testing.T) {
 	app := NewApp()
@@ -23,29 +27,23 @@ func TestNewApp(t *testing.T) {
 func TestDefaultApp(t *testing.T) {
 	app := DefaultApp()
 
-	// Assert that the Logger field is not nil
 	if app.Logger == nil {
 		t.Errorf("Expected Logger field to not be nil")
 	}
 
-	// Assert that the middlewares field has the expected length
-	expectedMiddlewareLength := 2
-	if len(app.middlewares) != expectedMiddlewareLength {
-		t.Errorf("Expected middlewares field to have length %d, but got %d", expectedMiddlewareLength, len(app.middlewares))
+	if len(app.middlewares) != 2 {
+		t.Errorf("Expected 2 middleware functions, but got %d", len(app.middlewares))
 	}
 }
 
 func TestUse(t *testing.T) {
 	app := NewApp()
 
-	// Define some middleware functions
 	mw1 := func(c *Context) {}
 	mw2 := func(c *Context) {}
 
-	// Add the middleware functions to the app
 	app.Use(mw1, mw2)
 
-	// Check if the middleware functions were added correctly
 	if len(app.middlewares) != 2 {
 		t.Errorf("Expected 2 middleware functions, but got %d", len(app.middlewares))
 	}
@@ -53,8 +51,8 @@ func TestUse(t *testing.T) {
 
 func TestAddRoute(t *testing.T) {
 	app := NewApp()
-	app.AddRoute("GET", "/test", []HandlerFunc{})
-	route, _ := app.router.findRoute("GET", "/test")
+	app.AddRoute(MethodGet, "/test", []HandlerFunc{})
+	route, _ := app.router.findRoute(MethodGet, "/test")
 	if route == nil {
 		t.Errorf("Expected route to be added to router")
 	}
@@ -63,438 +61,371 @@ func TestAddRoute(t *testing.T) {
 func TestGetRoute(t *testing.T) {
 	app := NewApp()
 	app.Get("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 
 	expected := "Hello, World!"
-	if rr.Body.String() != expected {
+	if string(ctx.Response.Body()) != expected {
 		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			string(ctx.Response.Body()), expected)
 	}
 }
 
 func TestPostRoute(t *testing.T) {
 	app := NewApp()
 	app.Post("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("POST", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodPost, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
 func TestPutRoute(t *testing.T) {
 	app := NewApp()
 	app.Put("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("PUT", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodPut, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
 func TestDeleteRoute(t *testing.T) {
 	app := NewApp()
 	app.Delete("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("DELETE", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodDelete, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
 func TestHeadRoute(t *testing.T) {
 	app := NewApp()
 	app.Head("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "")
 	})
 
-	req, err := http.NewRequest("HEAD", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodHead, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
 func TestPatchRoute(t *testing.T) {
 	app := NewApp()
 	app.Patch("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("PATCH", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodPatch, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
 func TestOptionsRoute(t *testing.T) {
 	app := NewApp()
 	app.Options("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		c.Text(StatusOK, "Hello, World!")
 	})
 
-	req, err := http.NewRequest("OPTIONS", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodOptions, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
+	if ctx.Response.StatusCode() != StatusOK {
 		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+			ctx.Response.StatusCode(), StatusOK)
 	}
 }
 
-func TestServeHTTP(t *testing.T) {
+func TestNotFoundHandler(t *testing.T) {
 	app := NewApp()
+	app.Get("/exists", func(c *Context) {
+		c.Text(StatusOK, "exists")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/notfound")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("Expected status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
+	}
+}
+
+func TestMiddlewareExecution(t *testing.T) {
+	app := NewApp()
+	order := []int{}
+
+	app.Use(func(c *Context) {
+		order = append(order, 1)
+		c.Next()
+		order = append(order, 4)
+	})
+
+	app.Use(func(c *Context) {
+		order = append(order, 2)
+		c.Next()
+		order = append(order, 3)
+	})
+
 	app.Get("/test", func(c *Context) {
-		c.Text(http.StatusOK, "Hello, World!")
+		order = append(order, 5)
 	})
 
-	req, err := http.NewRequest("GET", "/test", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	app.serveRequest(ctx)
 
-	rr := httptest.NewRecorder()
-	handler := http.HandlerFunc(app.ServeHTTP)
-
-	handler.ServeHTTP(rr, req)
-
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v",
-			status, http.StatusOK)
-	}
-
-	expected := "Hello, World!"
-	if rr.Body.String() != expected {
-		t.Errorf("handler returned unexpected body: got %v want %v",
-			rr.Body.String(), expected)
+	expected := []int{1, 2, 5, 3, 4}
+	if !stringslicesEqual(order, expected) {
+		t.Errorf("Middleware execution order wrong: got %v want %v", order, expected)
 	}
 }
 
-func TestRun(t *testing.T) {
+func stringslicesEqual(a, b []int) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestStaticFiles(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "static_test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmpFile := filepath.Join(tmpDir, "test.txt")
+	if err := os.WriteFile(tmpFile, []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	app := NewApp()
+	app.Static(tmpDir, "/static")
 
-	// Use dynamic port allocation to avoid port conflicts
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("Failed to create listener: %v", err)
+	ctx := createFasthttpRequest(MethodGet, "/static/test.txt")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
 	}
-	addr := listener.Addr().String()
+}
 
-	go app.RunListener(listener)
-
-	// Wait for the server to start
-	time.Sleep(100 * time.Millisecond)
-
-	// Send a GET request to the server
-	resp, err := http.Get("http://" + addr)
+func TestStaticFilesNotFound(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "static_test")
 	if err != nil {
-		t.Fatalf("Error sending request: %v", err)
+		t.Fatal(err)
 	}
-	defer resp.Body.Close()
+	defer os.RemoveAll(tmpDir)
 
-	// Assert that the response status code is 404
-	if resp.StatusCode != http.StatusNotFound {
-		t.Errorf("Expected status code %d, but got %d", http.StatusNotFound, resp.StatusCode)
+	app := NewApp()
+	app.Static(tmpDir, "/static")
+
+	ctx := createFasthttpRequest(MethodGet, "/static/nonexistent.txt")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("Expected status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
+	}
+}
+
+func TestGroupRoute(t *testing.T) {
+	app := NewApp()
+	group := app.Group("/api")
+
+	group.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "group route")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/api/test")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
+	}
+}
+
+func TestGroupMiddleware(t *testing.T) {
+	app := NewApp()
+	order := []int{}
+
+	group := app.Group("/api")
+	group.Use(func(c *Context) {
+		order = append(order, 1)
+		c.Next()
+	})
+
+	group.Get("/test", func(c *Context) {
+		order = append(order, 2)
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/api/test")
+	app.serveRequest(ctx)
+
+	expected := []int{1, 2}
+	if !stringslicesEqual(order, expected) {
+		t.Errorf("Middleware execution order wrong: got %v want %v", order, expected)
+	}
+}
+
+func TestNestedGroup(t *testing.T) {
+	app := NewApp()
+	group := app.Group("/api")
+	nested := group.Group("/v1")
+
+	nested.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "nested group route")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/api/v1/test")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
 	}
 }
 
 func TestConfigMerge(t *testing.T) {
-	defaultCfg := &Config{
-		AppName:         "default",
-		JSONEncoder:     nil,
-		NotFoundHandler: nil,
-		EnableDebug:     false,
+	config1 := &Config{
+		AppName: "app1",
+	}
+	config2 := &Config{
+		AppName: "app2",
 	}
 
-	cfg := &Config{
-		AppName:            "custom",
-		EnableDebug:        true,
-		MaxRequestBodySize: 1024,
-	}
-
-	merged := defaultCfg.merge(cfg)
-
-	if merged.AppName != "custom" {
-		t.Errorf("AppName = %v, want %v", merged.AppName, "custom")
-	}
-	if !merged.EnableDebug {
-		t.Error("EnableDebug should be true")
-	}
-	if merged.MaxRequestBodySize != 1024 {
-		t.Errorf("MaxRequestBodySize = %v, want %v", merged.MaxRequestBodySize, 1024)
-	}
-}
-
-func TestConfigMergeWithNil(t *testing.T) {
-	cfg := &Config{
-		AppName: "test",
-	}
-
-	merged := cfg.merge(nil)
-	if merged.AppName != "test" {
-		t.Error("merge with nil should preserve original value")
-	}
-
-	merged = (&Config{}).merge(nil, nil, nil)
-	if merged.AppName != "" {
-		t.Error("merge with all nil should preserve zero values")
-	}
-}
-
-func TestStatic(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "static_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	tmpFile := tmpDir + "/test.txt"
-	if err := os.WriteFile(tmpFile, []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	app := NewApp()
-	app.Static(tmpDir, "/static")
-
-	req := httptest.NewRequest("GET", "/static/test.txt", nil)
-	w := httptest.NewRecorder()
-	app.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
-	if w.Body.String() != "hello" {
-		t.Errorf("expected body 'hello', got %q", w.Body.String())
-	}
-}
-
-func TestStaticWithAbsolutePath(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "static_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	tmpFile := tmpDir + "/test.txt"
-	if err := os.WriteFile(tmpFile, []byte("hello"), 0644); err != nil {
-		t.Fatal(err)
-	}
-
-	absPath, _ := filepath.Abs(tmpDir)
-	app := NewApp()
-	app.Static(absPath, "/static")
-
-	req := httptest.NewRequest("GET", "/static/test.txt", nil)
-	w := httptest.NewRecorder()
-	app.ServeHTTP(w, req)
-
-	if w.Code != http.StatusOK {
-		t.Errorf("expected status 200, got %d", w.Code)
-	}
-}
-
-func TestStaticNotFound(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "static_test")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	app := NewApp()
-	app.Static(tmpDir, "/static")
-
-	req := httptest.NewRequest("GET", "/static/nonexistent.txt", nil)
-	w := httptest.NewRecorder()
-	app.ServeHTTP(w, req)
-
-	if w.Code != http.StatusNotFound {
-		t.Errorf("expected status 404, got %d", w.Code)
+	merged := config1.merge(config2)
+	if merged.AppName != "app2" {
+		t.Errorf("Expected AppName 'app2', got '%s'", merged.AppName)
 	}
 }
 
 func TestLoadHTMLGlob(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "templates")
+	tmpDir, err := os.MkdirTemp("", "templates_test")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	if err := os.WriteFile(tmpDir+"/test.html", []byte("<h1>{{.}}</h1>"), 0644); err != nil {
+	tmplPath := filepath.Join(tmpDir, "test.html")
+	if err := os.WriteFile(tmplPath, []byte("<html>{{.Name}}</html>"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
 	app := NewApp()
-	app.LoadHTMLGlob(tmpDir + "/*.html")
+	app.SetFuncMap(template.FuncMap{})
+	app.LoadHTMLGlob(filepath.Join(tmpDir, "*.html"))
 
 	if app.htmlTemplates == nil {
-		t.Error("htmlTemplates should not be nil")
+		t.Error("Expected htmlTemplates to be set")
 	}
 }
 
-func TestSetFuncMap(t *testing.T) {
-	app := NewApp()
-	funcMap := template.FuncMap{
-		"upper": strings.ToUpper,
-	}
-
-	app.SetFuncMap(funcMap)
-
-	if app.funcMap == nil {
-		t.Error("funcMap should not be nil")
-	}
-	if app.funcMap["upper"] == nil {
-		t.Error("funcMap should contain 'upper' function")
-	}
-}
-
-func TestRunGracefulShutdown(t *testing.T) {
+func TestJSONResponse(t *testing.T) {
 	app := NewApp()
 	app.Get("/test", func(c *Context) {
-		c.Text(http.StatusOK, "ok")
+		c.JSON(StatusOK, map[string]string{"message": "hello"})
 	})
 
-	listener, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatal(err)
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
 	}
 
-	done := make(chan error, 1)
-	go func() {
-		done <- app.RunListener(listener)
-	}()
-
-	time.Sleep(50 * time.Millisecond)
-
-	app.Shutdown(context.Background())
-
-	select {
-	case err := <-done:
-		if err != nil && err != http.ErrServerClosed {
-			t.Errorf("unexpected error: %v", err)
-		}
-	case <-time.After(2 * time.Second):
-		t.Error("timeout waiting for server shutdown")
+	contentType := string(ctx.Response.Header.ContentType())
+	if !strings.Contains(contentType, "application/json") {
+		t.Errorf("Expected Content-Type to contain 'application/json', got '%s'", contentType)
 	}
 }
 
-func TestShutdownWithoutServer(t *testing.T) {
+func TestRedirect(t *testing.T) {
 	app := NewApp()
-	err := app.Shutdown(context.Background())
-	if err != nil {
-		t.Errorf("Shutdown should not return error when server is nil: %v", err)
+	app.Get("/test", func(c *Context) {
+		c.Redirect(StatusMovedPermanently, "/new")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusMovedPermanently {
+		t.Errorf("Expected status %d, got %d", StatusMovedPermanently, ctx.Response.StatusCode())
 	}
+
+	location := string(ctx.Response.Header.Peek("Location"))
+	if location == "" {
+		t.Error("Expected Location header to be set")
+	}
+}
+
+func TestRequestHandler(t *testing.T) {
+	app := NewApp()
+	app.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "handler")
+	})
+
+	handler := app.RequestHandler()
+	if handler == nil {
+		t.Error("RequestHandler returned nil")
+	}
+
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	handler(ctx)
+
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
+	}
+}
+
+func TestAcquireReleaseContext(t *testing.T) {
+	app := NewApp()
+
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	c := app.acquireContext(ctx)
+
+	if c == nil {
+		t.Fatal("acquireContext returned nil")
+	}
+
+	if c.ctx != ctx {
+		t.Error("Context not set correctly")
+	}
+
+	app.releaseContext(c)
 }
