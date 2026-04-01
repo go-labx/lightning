@@ -5,20 +5,15 @@ import (
 )
 
 type node struct {
-	Pattern  string  `json:"pattern"`
-	Part     string  `json:"part"`
-	IsWild   bool    `json:"isWild"`
-	Children []*node `json:"children,omitempty"`
+	Pattern  string           `json:"pattern"`
+	Part     string           `json:"part"`
+	IsWild   bool             `json:"isWild"`
+	Children map[string]*node `json:"children,omitempty"`
 	handlers []HandlerFunc
 }
 
 func (n *node) matchChild(part string) *node {
-	for _, child := range n.Children {
-		if child.Part == part {
-			return child
-		}
-	}
-	return nil
+	return n.Children[part]
 }
 
 func (n *node) insert(pattern string, parts []string, height int, handlers []HandlerFunc) {
@@ -29,10 +24,13 @@ func (n *node) insert(pattern string, parts []string, height int, handlers []Han
 	}
 
 	part := parts[height]
-	child := n.matchChild(part)
-	if child == nil {
+	if n.Children == nil {
+		n.Children = make(map[string]*node)
+	}
+	child, exists := n.Children[part]
+	if !exists {
 		child = &node{Part: part, IsWild: part[0] == ':' || part[0] == '*'}
-		n.Children = append(n.Children, child)
+		n.Children[part] = child
 	}
 	child.insert(pattern, parts, height+1, handlers)
 }
