@@ -41,8 +41,8 @@ func TestNewRequest(t *testing.T) {
 				params: params,
 			},
 			want: &request{
-				originReq: req,
-				paramsMap: params,
+				req: req,
+				pathParams: params,
 				method:    req.Method,
 				path:      req.URL.Path,
 			},
@@ -101,8 +101,8 @@ func TestRequest_Cookie(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -141,8 +141,8 @@ func TestRequest_Cookies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -195,8 +195,8 @@ func TestRequest_Header(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -234,8 +234,8 @@ func TestRequest_Headers(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -290,8 +290,8 @@ func TestRequest_Param(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -328,8 +328,8 @@ func TestRequest_Params(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -365,8 +365,8 @@ func TestRequest_Queries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}
@@ -418,8 +418,8 @@ func TestRequest_Query(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &request{
-				originReq: tt.fields.req,
-				paramsMap: tt.fields.params,
+				req: tt.fields.req,
+				pathParams: tt.fields.params,
 				method:    tt.fields.method,
 				path:      tt.fields.path,
 			}

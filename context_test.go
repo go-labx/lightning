@@ -489,10 +489,10 @@ func TestContext_ParamString(t *testing.T) {
 	params := map[string]string{"id": "123"}
 	ctx.setParams(params)
 
-	got := ctx.ParamString("id")
+	got := ctx.Param("id")
 	want := "123"
 	if got != want {
-		t.Errorf("ctx.ParamString(\"id\") = %s, want %s", got, want)
+		t.Errorf("ctx.Param(\"id\") = %s, want %s", got, want)
 	}
 }
 
@@ -521,10 +521,10 @@ func TestContext_QueryString(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := ctx.QueryString("key")
+	got := ctx.Query("key")
 	want := "value"
 	if got != want {
-		t.Errorf("QueryString() = %q, want %q", got, want)
+		t.Errorf("Query() = %q, want %q", got, want)
 	}
 }
 
@@ -1587,7 +1587,7 @@ func TestContext_Redirect(t *testing.T) {
 func TestUserAgent(t *testing.T) {
 	ctx := createMockContext(t)
 	ua := "my-user-agent"
-	ctx.req.originReq.Header.Add("user-agent", ua)
+	ctx.req.req.Header.Add("user-agent", ua)
 
 	if userAgent := ctx.UserAgent(); userAgent != "my-user-agent" {
 		t.Errorf("expected user agent %q, got %q", ua, userAgent)
@@ -1597,7 +1597,7 @@ func TestUserAgent(t *testing.T) {
 func TestReferer(t *testing.T) {
 	ctx := createMockContext(t)
 	ref := "https://example.com"
-	ctx.req.originReq.Header.Add("referer", ref)
+	ctx.req.req.Header.Add("referer", ref)
 
 	if referer := ctx.Referer(); referer != ref {
 		t.Errorf("expected referer %q, got %q", ref, referer)
@@ -1607,7 +1607,7 @@ func TestReferer(t *testing.T) {
 func TestContext_RemoteAddr(t *testing.T) {
 	ctx := createMockContext(t)
 	expected := "1.2.3.4:5678"
-	ctx.req.originReq.RemoteAddr = expected
+	ctx.req.req.RemoteAddr = expected
 
 	if addr := ctx.RemoteAddr(); addr != expected {
 		t.Errorf("Expected RemoteAddr to return %q, but got %q", expected, addr)

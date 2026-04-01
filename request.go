@@ -7,109 +7,92 @@ import (
 )
 
 type request struct {
-	originReq *http.Request
-	paramsMap map[string]string
-	method    string
-	path      string
-	rawBody   []byte
+	req        *http.Request
+	pathParams map[string]string
+	method     string
+	path       string
+	rawBody    []byte
 }
 
-// newRequest creates a new request object from an http.Request object
 func newRequest(req *http.Request) (*request, error) {
 	var rawBody []byte
-	var err error
 	if req.Body != nil {
+		var err error
 		rawBody, err = io.ReadAll(req.Body)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	request := &request{
-		originReq: req,
-		paramsMap: map[string]string{},
-		method:    req.Method,
-		path:      req.URL.Path,
-		rawBody:   rawBody,
-	}
-
-	return request, nil
+	return &request{
+		req:        req,
+		pathParams: map[string]string{},
+		method:     req.Method,
+		path:       req.URL.Path,
+		rawBody:    rawBody,
+	}, nil
 }
 
-// setParams sets the parameters for the request object
 func (r *request) setParams(params map[string]string) {
-	r.paramsMap = params
+	r.pathParams = params
 }
 
-// param returns the parameter value for a given key.
 func (r *request) param(key string) string {
-	return r.paramsMap[key]
+	return r.pathParams[key]
 }
 
-// params returns the entire parameter map for the context.
 func (r *request) params() map[string]string {
-	return r.paramsMap
+	return r.pathParams
 }
 
-// query returns the value of a given query parameter.
 func (r *request) query(key string) string {
-	return r.originReq.URL.Query().Get(key)
+	return r.req.URL.Query().Get(key)
 }
 
-// queries returns the entire query parameter map for the context.
 func (r *request) queries() map[string][]string {
-	return r.originReq.URL.Query()
+	return r.req.URL.Query()
 }
 
-// header returns the value of a given header.
 func (r *request) header(key string) string {
-	return r.originReq.Header.Get(key)
+	return r.req.Header.Get(key)
 }
 
-// headers returns the entire header map for the request.
 func (r *request) headers() http.Header {
-	return r.originReq.Header
+	return r.req.Header
 }
 
-// cookie returns the cookie with the given name.
 func (r *request) cookie(name string) *http.Cookie {
-	cookie, err := r.originReq.Cookie(name)
+	cookie, err := r.req.Cookie(name)
 	if err != nil {
 		return nil
 	}
 	return cookie
 }
 
-// cookiesMap returns all cookies from the request.
 func (r *request) cookies() []*http.Cookie {
-	return r.originReq.Cookies()
+	return r.req.Cookies()
 }
 
-// userAgent returns the user agent header value of the request.
 func (r *request) userAgent() string {
 	return r.header("user-agent")
 }
 
-// referer returns the referer header value of the request.
 func (r *request) referer() string {
 	return r.header("referer")
 }
 
-// remoteAddr returns the remote address of the request.
 func (r *request) remoteAddr() string {
 	ip := r.header("x-real-ip")
 	if ip == "" {
 		ip = r.header("x-forwarded-for")
 		if ip != "" {
-			// X-Forwarded-For may contain multiple IPs: client, proxy1, proxy2
-			// Take the first one (client IP)
 			if idx := strings.Index(ip, ","); idx != -1 {
 				ip = strings.TrimSpace(ip[:idx])
 			}
 		}
 	}
 	if ip == "" {
-		ip = r.originReq.RemoteAddr
+		ip = r.req.RemoteAddr
 	}
 	return ip
 }

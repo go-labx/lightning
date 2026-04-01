@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
@@ -137,70 +138,36 @@ func (c *Context) Param(key string) string {
 	return c.req.param(key)
 }
 
-// ParamInt returns the value of a URL parameter as an integer for a given key.
+// ParamInt returns the value of a URL parameter as an integer.
 func (c *Context) ParamInt(key string) (int, error) {
-	str := c.Param(key)
-	value, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.Atoi(c.Param(key))
 }
 
-// ParamUInt returns the value of a URL parameter as a uint for a given key.
-func (c *Context) ParamUInt(key string) (uint, error) {
-	str := c.Param(key)
-	value, err := strconv.ParseUint(str, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint(value), nil
-}
-
-// ParamInt64 returns the value of a URL parameter as an int64 for a given key.
+// ParamInt64 returns the value of a URL parameter as an int64.
 func (c *Context) ParamInt64(key string) (int64, error) {
-	str := c.Param(key)
-	value, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.ParseInt(c.Param(key), 10, 64)
 }
 
-// ParamUInt64 returns the value of a URL parameter as a uint64 for a given key.
+// ParamUInt returns the value of a URL parameter as a uint.
+func (c *Context) ParamUInt(key string) (uint, error) {
+	v, err := strconv.ParseUint(c.Param(key), 10, 32)
+	return uint(v), err
+}
+
+// ParamUInt64 returns the value of a URL parameter as a uint64.
 func (c *Context) ParamUInt64(key string) (uint64, error) {
-	str := c.Param(key)
-	value, err := strconv.ParseUint(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.ParseUint(c.Param(key), 10, 64)
 }
 
-// ParamFloat32 returns the value of a URL parameter as a float32 for a given key.
-func (c *Context) ParamFloat32(key string) (float32, error) {
-	str := c.Param(key)
-	value, err := strconv.ParseFloat(str, 32)
-	if err != nil {
-		return 0, err
-	}
-	return float32(value), nil
-}
-
-// ParamFloat64 returns the value of a URL parameter as a float64 for a given key.
+// ParamFloat64 returns the value of a URL parameter as a float64.
 func (c *Context) ParamFloat64(key string) (float64, error) {
-	str := c.Param(key)
-	value, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.ParseFloat(c.Param(key), 64)
 }
 
-// ParamString returns the value of a URL parameter as a string for a given key.
-// Deprecated: Use Param instead.
-func (c *Context) ParamString(key string) string {
-	return c.Param(key)
+// ParamFloat32 returns the value of a URL parameter as a float32.
+func (c *Context) ParamFloat32(key string) (float32, error) {
+	v, err := strconv.ParseFloat(c.Param(key), 32)
+	return float32(v), err
 }
 
 // Params returns all URL parameters for the req.
@@ -213,23 +180,13 @@ func (c *Context) Query(key string) string {
 	return c.req.query(key)
 }
 
-// QueryString returns the value of a given query parameter as a string.
-// Deprecated: Use Query instead.
-func (c *Context) QueryString(key string) string {
-	return c.req.query(key)
-}
-
 // QueryBool returns the value of a given query parameter as a bool.
 func (c *Context) QueryBool(key string) (bool, error) {
 	str := c.req.query(key)
 	if str == "" {
 		return false, nil
 	}
-	value, err := strconv.ParseBool(str)
-	if err != nil {
-		return false, err
-	}
-	return value, nil
+	return strconv.ParseBool(str)
 }
 
 // QueryInt returns the value of a given query parameter as an int.
@@ -238,24 +195,7 @@ func (c *Context) QueryInt(key string) (int, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
-}
-
-// QueryUInt returns the value of a given query parameter as a uint.
-func (c *Context) QueryUInt(key string) (uint, error) {
-	str := c.req.query(key)
-	if str == "" {
-		return 0, nil
-	}
-	value, err := strconv.ParseUint(str, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint(value), nil
+	return strconv.Atoi(str)
 }
 
 // QueryInt8 returns the value of a given query parameter as an int8.
@@ -264,24 +204,8 @@ func (c *Context) QueryInt8(key string) (int8, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseInt(str, 10, 8)
-	if err != nil {
-		return 0, err
-	}
-	return int8(value), nil
-}
-
-// QueryUInt8 returns the value of a given query parameter as a uint8.
-func (c *Context) QueryUInt8(key string) (uint8, error) {
-	str := c.req.query(key)
-	if str == "" {
-		return 0, nil
-	}
-	value, err := strconv.ParseUint(str, 10, 8)
-	if err != nil {
-		return 0, err
-	}
-	return uint8(value), nil
+	v, err := strconv.ParseInt(str, 10, 8)
+	return int8(v), err
 }
 
 // QueryInt32 returns the value of a given query parameter as an int32.
@@ -290,24 +214,8 @@ func (c *Context) QueryInt32(key string) (int32, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseInt(str, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return int32(value), nil
-}
-
-// QueryUInt32 returns the value of a given query parameter as a uint32.
-func (c *Context) QueryUInt32(key string) (uint32, error) {
-	str := c.req.query(key)
-	if str == "" {
-		return 0, nil
-	}
-	value, err := strconv.ParseUint(str, 10, 32)
-	if err != nil {
-		return 0, err
-	}
-	return uint32(value), nil
+	v, err := strconv.ParseInt(str, 10, 32)
+	return int32(v), err
 }
 
 // QueryInt64 returns the value of a given query parameter as an int64.
@@ -316,11 +224,37 @@ func (c *Context) QueryInt64(key string) (int64, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseInt(str, 10, 64)
-	if err != nil {
-		return 0, err
+	return strconv.ParseInt(str, 10, 64)
+}
+
+// QueryUInt returns the value of a given query parameter as a uint.
+func (c *Context) QueryUInt(key string) (uint, error) {
+	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
 	}
-	return value, nil
+	v, err := strconv.ParseUint(str, 10, 32)
+	return uint(v), err
+}
+
+// QueryUInt8 returns the value of a given query parameter as a uint8.
+func (c *Context) QueryUInt8(key string) (uint8, error) {
+	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseUint(str, 10, 8)
+	return uint8(v), err
+}
+
+// QueryUInt32 returns the value of a given query parameter as a uint32.
+func (c *Context) QueryUInt32(key string) (uint32, error) {
+	str := c.req.query(key)
+	if str == "" {
+		return 0, nil
+	}
+	v, err := strconv.ParseUint(str, 10, 32)
+	return uint32(v), err
 }
 
 // QueryUInt64 returns the value of a given query parameter as a uint64.
@@ -329,11 +263,7 @@ func (c *Context) QueryUInt64(key string) (uint64, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseUint(str, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.ParseUint(str, 10, 64)
 }
 
 // QueryFloat32 returns the value of a given query parameter as a float32.
@@ -342,11 +272,8 @@ func (c *Context) QueryFloat32(key string) (float32, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseFloat(str, 32)
-	if err != nil {
-		return 0, err
-	}
-	return float32(value), nil
+	v, err := strconv.ParseFloat(str, 32)
+	return float32(v), err
 }
 
 // QueryFloat64 returns the value of a given query parameter as a float64.
@@ -355,11 +282,7 @@ func (c *Context) QueryFloat64(key string) (float64, error) {
 	if str == "" {
 		return 0, nil
 	}
-	value, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return 0, err
-	}
-	return value, nil
+	return strconv.ParseFloat(str, 64)
 }
 
 // Queries returns all query parameters for the req.
@@ -534,4 +457,44 @@ func (c *Context) Fail(code int, message string) {
 		"code":    code,
 		"message": message,
 	})
+}
+
+// JSONError writes a JSON error response with the given status code and message.
+func (c *Context) JSONError(code int, message string) {
+	c.JSON(code, map[string]any{
+		"code":    code,
+		"message": message,
+	})
+}
+
+// IsAjax checks if the request is an AJAX request.
+func (c *Context) IsAjax() bool {
+	return c.Header("X-Requested-With") == "XMLHttpRequest"
+}
+
+// IsWebSocket checks if the request is a WebSocket upgrade request.
+func (c *Context) IsWebSocket() bool {
+	return c.Header("Upgrade") == "websocket"
+}
+
+// ContentType returns the Content-Type header of the request.
+func (c *Context) ContentType() string {
+	return c.Header("Content-Type")
+}
+
+// AcceptedLanguages returns the accepted languages from the request.
+func (c *Context) AcceptedLanguages() []string {
+	acceptLanguage := c.Header("Accept-Language")
+	if acceptLanguage == "" {
+		return nil
+	}
+	parts := strings.Split(acceptLanguage, ",")
+	languages := make([]string, 0, len(parts))
+	for _, part := range parts {
+		lang := strings.TrimSpace(strings.Split(part, ";")[0])
+		if lang != "" {
+			languages = append(languages, lang)
+		}
+	}
+	return languages
 }

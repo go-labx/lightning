@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"sync"
 	"syscall"
@@ -35,40 +34,44 @@ type Application struct {
 
 	Logger *lightlog.ConsoleLogger
 
-	server     *http.Server
-	mu         sync.Mutex
+	server      *http.Server
+	mu          sync.Mutex
 	contextPool sync.Pool
 }
 
 type Config struct {
-	AppName           string
-	JSONEncoder       JSONMarshal
-	JSONDecoder       JSONUnmarshal
-	NotFoundHandler   HandlerFunc // Handler function for 404 Not Found error
-	EnableDebug       bool
-	MaxRequestBodySize int64 // Max request body size in bytes, 0 means unlimited
+	AppName            string
+	JSONEncoder        JSONMarshal
+	JSONDecoder        JSONUnmarshal
+	NotFoundHandler    HandlerFunc
+	EnableDebug        bool
+	MaxRequestBodySize int64
 }
 
 func (c *Config) merge(configs ...*Config) *Config {
-	value := reflect.ValueOf(c).Elem()
-
-	// iterate over all the configs passed in
-	for _, config := range configs {
-		if config == nil {
+	for _, cfg := range configs {
+		if cfg == nil {
 			continue
 		}
-		v := reflect.ValueOf(config).Elem()
-		t := reflect.TypeOf(config).Elem()
-
-		// iterate over all the fields in the config
-		for i := 0; i < t.NumField(); i++ {
-			// if the field is not zero, set the value of the field in the current config to the value of the field in the passed in config
-			if !v.Field(i).IsZero() {
-				value.Field(i).Set(v.Field(i))
-			}
+		if cfg.AppName != "" {
+			c.AppName = cfg.AppName
+		}
+		if cfg.JSONEncoder != nil {
+			c.JSONEncoder = cfg.JSONEncoder
+		}
+		if cfg.JSONDecoder != nil {
+			c.JSONDecoder = cfg.JSONDecoder
+		}
+		if cfg.NotFoundHandler != nil {
+			c.NotFoundHandler = cfg.NotFoundHandler
+		}
+		if cfg.EnableDebug {
+			c.EnableDebug = cfg.EnableDebug
+		}
+		if cfg.MaxRequestBodySize > 0 {
+			c.MaxRequestBodySize = cfg.MaxRequestBodySize
 		}
 	}
-
 	return c
 }
 
@@ -88,9 +91,9 @@ func NewApp(c ...*Config) *Application {
 	config = config.merge(c...)
 
 	app := &Application{
-		Config:    config,
-		router:    newRouter(),
-		Logger:     lightlog.NewConsoleLogger(config.AppName, lightlog.TRACE),
+		Config: config,
+		router: newRouter(),
+		Logger: lightlog.NewConsoleLogger(config.AppName, lightlog.TRACE),
 		contextPool: sync.Pool{
 			New: func() interface{} {
 				return &Context{index: -1}
@@ -183,11 +186,14 @@ func (app *Application) Group(prefix string) *Group {
 // If the file exists, it is served with a 200 status code using the http.ServeFile function.
 // If the file does not exist, a 404 status code is returned with the text "Not Found".
 func (app *Application) Static(root string, prefix string) {
+	exPath := ""
 	ex, err := os.Executable()
 	if err != nil {
-		panic(err)
+		app.Logger.Warn("Failed to get executable path for static files: %v, using current directory", err)
+		exPath = "."
+	} else {
+		exPath = filepath.Dir(ex)
 	}
-	exPath := filepath.Dir(ex)
 
 	app.Get(path.Join(prefix, "/*"), func(ctx *Context) {
 		fullFilePath := filepath.Join(exPath, root, strings.TrimPrefix(ctx.Path, prefix))

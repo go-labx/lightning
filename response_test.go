@@ -15,12 +15,12 @@ func TestNewResponse(t *testing.T) {
 
 	resp := newResponse(req, res)
 
-	if resp.originReq != req {
-		t.Errorf("Expected originReq to be %v, but got %v", req, resp.originReq)
+	if resp.req != req {
+		t.Errorf("Expected req to be %v, but got %v", req, resp.req)
 	}
 
-	if resp.originRes != res {
-		t.Errorf("Expected originRes to be %v, but got %v", res, resp.originRes)
+	if resp.writer != res {
+		t.Errorf("Expected writer to be %v, but got %v", res, resp.writer)
 	}
 
 	if resp.statusCode != http.StatusNotFound {
@@ -35,12 +35,12 @@ func TestNewResponse(t *testing.T) {
 		t.Errorf("Expected data to be nil, but got %v", resp.body)
 	}
 
-	if resp.redirectUrl != "" {
-		t.Errorf("Expected redirectUrl to be empty, but got %v", resp.redirectUrl)
+	if resp.redirectTo != "" {
+		t.Errorf("Expected redirectTo to be empty, but got %v", resp.redirectTo)
 	}
 
-	if resp.fileUrl != "" {
-		t.Errorf("Expected fileUrl to be empty, but got %v", resp.fileUrl)
+	if resp.filePath != "" {
+		t.Errorf("Expected filePath to be empty, but got %v", resp.filePath)
 	}
 }
 
@@ -110,8 +110,8 @@ func TestResponse_File(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if resp.fileUrl != absPath {
-		t.Errorf("fileUrl field is %s, expected %s", resp.fileUrl, absPath)
+	if resp.filePath != absPath {
+		t.Errorf("filePath field is %s, expected %s", resp.filePath, absPath)
 	}
 }
 
