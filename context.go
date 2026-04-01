@@ -3,33 +3,32 @@ package lightning
 import (
 	"encoding/json"
 	"encoding/xml"
-	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/valyala/fasthttp"
 )
+
+// use a single instance of Validate, it caches struct info
+var validate = validator.New()
 
 // Context represents the context of an HTTP request/response.
 type Context struct {
-	App       *Application
-	Req       *http.Request
-	Res       http.ResponseWriter
-	req       *request
-	res       *response
-	data      contextData
-	handlers  []HandlerFunc
-	index     int
-	Method    string // HTTP method of the originReq
-	Path      string // URL path of the originReq
-	skipFlush bool
+	App      *Application
+	ctx      *fasthttp.RequestCtx
+	req      *request
+	res      *response
+	data     contextData
+	handlers []HandlerFunc
+	index    int
+	Method   string
+	Path     string
 }
 
-// reset resets the Context to its zero state for reuse.
 func (c *Context) reset() {
 	c.App = nil
-	c.Req = nil
-	c.Res = nil
+	c.ctx = nil
 	c.req = nil
 	c.res = nil
 	c.data = nil
@@ -37,38 +36,19 @@ func (c *Context) reset() {
 	c.index = -1
 	c.Method = ""
 	c.Path = ""
-	c.skipFlush = false
 }
 
-// NewContext creates a new context object with the given HTTP response writer and req.
-func NewContext(writer http.ResponseWriter, req *http.Request) (*Context, error) {
-	request, err := newRequest(req)
-	if err != nil {
-		return nil, err
+// NewContext creates a new Context object for the given fasthttp request context.
+func NewContext(ctx *fasthttp.RequestCtx) *Context {
+	return &Context{
+		ctx:   ctx,
+		index: -1,
 	}
-	response := newResponse(req, writer)
-	ctx := &Context{
-		App:       nil,
-		Req:       req,
-		Res:       writer,
-		req:       request,
-		res:       response,
-		data:      contextData{},
-		handlers:  []HandlerFunc{},
-		index:     -1,
-		Method:    request.method,
-		Path:      request.path,
-		skipFlush: false,
-	}
-
-	return ctx, nil
 }
 
 // flush flushes the response buffer.
 func (c *Context) flush() {
-	if !c.skipFlush {
-		c.res.flush()
-	}
+	c.res.flush()
 }
 
 // setHandlers sets the handlers for the context.
@@ -76,7 +56,7 @@ func (c *Context) setHandlers(handlers []HandlerFunc) {
 	c.handlers = handlers
 }
 
-// setParams sets the URL parameters for the req.
+// setParams sets the URL parameters for the request.
 func (c *Context) setParams(params map[string]string) {
 	c.req.setParams(params)
 }
@@ -87,33 +67,28 @@ func (c *Context) setApp(app *Application) {
 }
 
 // SkipFlush sets the skipFlush flag to true, which prevents the response buffer from being flushed.
-func (c *Context) SkipFlush() {
-	c.skipFlush = true
-}
+func (c *Context) SkipFlush() {}
 
 // Next calls the next middleware function in the chain.
 func (c *Context) Next() {
 	c.index++
 	if c.index < len(c.handlers) {
-		handlerFunc := c.handlers[c.index]
-		handlerFunc(c)
+		c.handlers[c.index](c)
 	}
 }
 
-// RawBody returns the raw origin request body.
+// RawBody returns the raw request body.
 func (c *Context) RawBody() []byte {
-	return c.req.rawBody
+	return c.req.body()
 }
 
-// StringBody returns the origin request body as a string.
+// StringBody returns the request body as a string.
 func (c *Context) StringBody() string {
 	return string(c.RawBody())
 }
 
-// use a single instance of Validate, it caches struct info
-var validate = validator.New()
-
-// JSONBody parses the origin request body as JSON and stores the result in v.
+// JSONBody parses the request body as JSON and stores the result in v.
+// If valid is true, the struct is validated after parsing.
 func (c *Context) JSONBody(v any, valid ...bool) error {
 	decode := json.Unmarshal
 	if c.App != nil && c.App.Config.JSONDecoder != nil {
@@ -125,10 +100,7 @@ func (c *Context) JSONBody(v any, valid ...bool) error {
 		return err
 	}
 	if len(valid) > 0 && valid[0] {
-		err = validate.Struct(v)
-		if err != nil {
-			return err
-		}
+		return validate.Struct(v)
 	}
 	return nil
 }
@@ -170,7 +142,7 @@ func (c *Context) ParamFloat32(key string) (float32, error) {
 	return float32(v), err
 }
 
-// Params returns all URL parameters for the req.
+// Params returns all URL parameters for the request.
 func (c *Context) Params() map[string]string {
 	return c.req.params()
 }
@@ -285,7 +257,7 @@ func (c *Context) QueryFloat64(key string) (float64, error) {
 	return strconv.ParseFloat(str, 64)
 }
 
-// Queries returns all query parameters for the req.
+// Queries returns all query parameters for the request.
 func (c *Context) Queries() map[string][]string {
 	return c.req.queries()
 }
@@ -305,8 +277,8 @@ func (c *Context) Header(key string) string {
 	return c.req.header(key)
 }
 
-// Headers returns all headers for the req.
-func (c *Context) Headers() http.Header {
+// Headers returns all headers for the request.
+func (c *Context) Headers() map[string]string {
 	return c.req.headers()
 }
 
@@ -326,23 +298,18 @@ func (c *Context) DelHeader(key string) {
 }
 
 // Cookie returns the cookie with the given name.
-func (c *Context) Cookie(name string) *http.Cookie {
+func (c *Context) Cookie(name string) *fasthttp.Cookie {
 	return c.req.cookie(name)
 }
 
-// Cookies returns all cookies from the req.
-func (c *Context) Cookies() []*http.Cookie {
+// Cookies returns all cookies from the request.
+func (c *Context) Cookies() []*fasthttp.Cookie {
 	return c.req.cookies()
 }
 
 // SetCookie sets a new cookie with the given key-value pair.
 func (c *Context) SetCookie(key string, value string) {
 	c.res.cookies.set(key, value)
-}
-
-// SetCustomCookie sets a custom cookie in the response.
-func (c *Context) SetCustomCookie(cookie *http.Cookie) {
-	c.res.cookies.setCustom(cookie)
 }
 
 // Body returns the response body.
@@ -363,10 +330,10 @@ func (c *Context) JSON(code int, obj any) {
 	}
 	encodeData, err := encode(obj)
 	if err != nil {
-		panic(err)
+		return
 	}
 
-	c.res.setHeader(HeaderContentType, MIMEApplicationJSON)
+	c.res.setHeader(HeaderContentType, MIMEApplicationJSONCharsetUTF8)
 	c.res.setStatus(code)
 	c.res.setBody(encodeData)
 }
@@ -383,18 +350,19 @@ func (c *Context) HTML(code int, name string, data any) {
 	c.SetHeader(HeaderContentType, MIMETextHTML)
 	c.SetStatus(code)
 
-	if err := c.App.htmlTemplates.ExecuteTemplate(c.Res, name, data); err != nil {
+	var buf strings.Builder
+	if err := c.App.htmlTemplates.ExecuteTemplate(&buf, name, data); err != nil {
 		c.Text(500, err.Error())
-	} else {
-		c.SkipFlush()
+		return
 	}
+	c.SetBody([]byte(buf.String()))
 }
 
 // XML writes an XML response with the given status code and object.
 func (c *Context) XML(code int, obj any) {
 	encodeData, err := xml.Marshal(obj)
 	if err != nil {
-		panic(err)
+		return
 	}
 
 	c.res.setHeader(HeaderContentType, MIMEApplicationXML)
@@ -422,7 +390,7 @@ func (c *Context) DelData(key string) {
 	c.data.del(key)
 }
 
-// Redirect redirects the originReq to a new URL with the given status code.
+// Redirect redirects the request to a new URL with the given status code.
 func (c *Context) Redirect(code int, url string) {
 	c.res.redirect(code, url)
 }
@@ -444,7 +412,7 @@ func (c *Context) RemoteAddr() string {
 
 // Success writes a successful response with the given data.
 func (c *Context) Success(data any) {
-	c.JSON(http.StatusOK, map[string]any{
+	c.JSON(StatusOK, map[string]any{
 		"code":    0,
 		"message": "ok",
 		"data":    data,
@@ -453,7 +421,7 @@ func (c *Context) Success(data any) {
 
 // Fail writes a failed response with the given code and message.
 func (c *Context) Fail(code int, message string) {
-	c.JSON(http.StatusOK, map[string]any{
+	c.JSON(StatusOK, map[string]any{
 		"code":    code,
 		"message": message,
 	})

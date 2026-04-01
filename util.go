@@ -2,7 +2,6 @@ package lightning
 
 import (
 	"log"
-	"net/http"
 	"os"
 	"strings"
 )
@@ -23,6 +22,8 @@ func parsePattern(pattern string) []string {
 	return result
 }
 
+// resolveAddress resolves the address to listen on from the given parameters.
+// It checks the PORT environment variable and uses default port if not set.
 func resolveAddress(addr []string) string {
 	if port := os.Getenv("PORT"); port != "" {
 		log.Printf("[DEBUG] Environment variable PORT=\"%s\"", port)
@@ -42,10 +43,10 @@ func resolveAddress(addr []string) string {
 
 // defaultNotFound is the default handler function for 404 Not Found error
 func defaultNotFound(ctx *Context) {
-	ctx.Text(http.StatusNotFound, http.StatusText(http.StatusNotFound))
+	ctx.Text(StatusNotFound, "Not Found")
 }
 
 // defaultInternalServerError is the default handler function for 500 Internal Server Error
 func defaultInternalServerError(ctx *Context) {
-	ctx.Text(http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError))
+	ctx.Text(StatusInternalServerError, "Internal Server Error")
 }

@@ -1,36 +1,21 @@
 package lightning
 
 import (
-	"io"
-	"net/http"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
 type request struct {
-	req        *http.Request
+	ctx        *fasthttp.RequestCtx
 	pathParams map[string]string
-	method     string
-	path       string
-	rawBody    []byte
 }
 
-func newRequest(req *http.Request) (*request, error) {
-	var rawBody []byte
-	if req.Body != nil {
-		var err error
-		rawBody, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, err
-		}
-	}
-
+func newRequest(ctx *fasthttp.RequestCtx) *request {
 	return &request{
-		req:        req,
-		pathParams: map[string]string{},
-		method:     req.Method,
-		path:       req.URL.Path,
-		rawBody:    rawBody,
-	}, nil
+		ctx:        ctx,
+		pathParams: make(map[string]string),
+	}
 }
 
 func (r *request) setParams(params map[string]string) {
@@ -46,45 +31,63 @@ func (r *request) params() map[string]string {
 }
 
 func (r *request) query(key string) string {
-	return r.req.URL.Query().Get(key)
+	return string(r.ctx.QueryArgs().Peek(key))
 }
 
 func (r *request) queries() map[string][]string {
-	return r.req.URL.Query()
+	args := r.ctx.QueryArgs()
+	queries := make(map[string][]string)
+	args.VisitAll(func(key, value []byte) {
+		queries[string(key)] = append(queries[string(key)], string(value))
+	})
+	return queries
 }
 
 func (r *request) header(key string) string {
-	return r.req.Header.Get(key)
+	return string(r.ctx.Request.Header.Peek(key))
 }
 
-func (r *request) headers() http.Header {
-	return r.req.Header
+func (r *request) headers() map[string]string {
+	headers := make(map[string]string)
+	r.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+	return headers
 }
 
-func (r *request) cookie(name string) *http.Cookie {
-	cookie, err := r.req.Cookie(name)
-	if err != nil {
-		return nil
+func (r *request) cookie(name string) *fasthttp.Cookie {
+	var cookie fasthttp.Cookie
+	cookie.ParseBytes(r.ctx.Request.Header.Cookie(name))
+	if len(cookie.Key()) > 0 {
+		return &cookie
 	}
-	return cookie
+	return nil
 }
 
-func (r *request) cookies() []*http.Cookie {
-	return r.req.Cookies()
+func (r *request) cookies() []*fasthttp.Cookie {
+	var cookies []*fasthttp.Cookie
+	r.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		if string(key) == "Cookie" {
+			var c fasthttp.Cookie
+			c.ParseBytes(value)
+			cookies = append(cookies, &c)
+		}
+	})
+	return cookies
 }
 
 func (r *request) userAgent() string {
-	return r.header("user-agent")
+	return string(r.ctx.Request.Header.UserAgent())
 }
 
 func (r *request) referer() string {
-	return r.header("referer")
+	return string(r.ctx.Request.Header.Referer())
 }
 
 func (r *request) remoteAddr() string {
-	ip := r.header("x-real-ip")
+	ip := r.header("X-Real-IP")
 	if ip == "" {
-		ip = r.header("x-forwarded-for")
+		ip = r.header("X-Forwarded-For")
 		if ip != "" {
 			if idx := strings.Index(ip, ","); idx != -1 {
 				ip = strings.TrimSpace(ip[:idx])
@@ -92,7 +95,23 @@ func (r *request) remoteAddr() string {
 		}
 	}
 	if ip == "" {
-		ip = r.req.RemoteAddr
+		ip = r.ctx.RemoteAddr().String()
 	}
 	return ip
+}
+
+func (r *request) body() []byte {
+	return r.ctx.Request.Body()
+}
+
+func (r *request) method() string {
+	return string(r.ctx.Request.Header.Method())
+}
+
+func (r *request) path() string {
+	return string(r.ctx.Path())
+}
+
+func (r *request) uri() string {
+	return string(r.ctx.URI().FullURI())
 }
