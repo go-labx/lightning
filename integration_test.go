@@ -197,6 +197,95 @@ func TestRouterSearch(t *testing.T) {
 	}
 }
 
+func TestRouterSearchWithWildcard(t *testing.T) {
+	r := newRouter()
+
+	r.addRoute("GET", "/static/*filepath", []HandlerFunc{func(c *Context) {}})
+	r.addRoute("GET", "/files/*path", []HandlerFunc{func(c *Context) {}})
+
+	handlers, params := r.findRoute("GET", "/static/js/app.js")
+	if handlers == nil {
+		t.Error("Expected to find wildcard route")
+	}
+	if params["filepath"] != "js/app.js" {
+		t.Errorf("Expected filepath=js/app.js, got %v", params["filepath"])
+	}
+
+	handlers, params = r.findRoute("GET", "/files/docs/readme.txt")
+	if handlers == nil {
+		t.Error("Expected to find wildcard route")
+	}
+	if params["path"] != "docs/readme.txt" {
+		t.Errorf("Expected path=docs/readme.txt, got %v", params["path"])
+	}
+}
+
+func TestRouterSearchWithWildcardAtEnd(t *testing.T) {
+	r := newRouter()
+
+	r.addRoute("GET", "/assets/*", []HandlerFunc{func(c *Context) {}})
+
+	handlers, _ := r.findRoute("GET", "/assets/css/style.css")
+	if handlers == nil {
+		t.Error("Expected to find wildcard route")
+	}
+}
+
+func TestRouterSearchParamExtraction(t *testing.T) {
+	r := newRouter()
+
+	r.addRoute("GET", "/users/:id/posts/:postId", []HandlerFunc{func(c *Context) {}})
+
+	handlers, params := r.findRoute("GET", "/users/123/posts/456")
+	if handlers == nil {
+		t.Error("Expected to find route")
+	}
+	if params["id"] != "123" {
+		t.Errorf("Expected id=123, got %v", params["id"])
+	}
+	if params["postId"] != "456" {
+		t.Errorf("Expected postId=456, got %v", params["postId"])
+	}
+}
+
+func TestRouterSearchEmptyPath(t *testing.T) {
+	r := newRouter()
+	r.addRoute("GET", "/", []HandlerFunc{func(c *Context) {}})
+
+	handlers, params := r.findRoute("GET", "/")
+	if handlers == nil {
+		t.Error("Expected to find root route")
+	}
+	if len(params) != 0 {
+		t.Errorf("Expected 0 params, got %d", len(params))
+	}
+}
+
+func TestRouterSearchMethodNotAllowed(t *testing.T) {
+	r := newRouter()
+	r.addRoute("GET", "/test", []HandlerFunc{func(c *Context) {}})
+
+	handlers, _ := r.findRoute("POST", "/test")
+	if handlers != nil {
+		t.Error("POST should not match GET route")
+	}
+}
+
+func TestRouterSearchConflictingRoutes(t *testing.T) {
+	r := newRouter()
+
+	r.addRoute("GET", "/users/:id", []HandlerFunc{func(c *Context) {}})
+	r.addRoute("GET", "/users/profile", []HandlerFunc{func(c *Context) {}})
+
+	handlers, params := r.findRoute("GET", "/users/profile")
+	if handlers == nil {
+		t.Error("Expected to find specific route over parameter route")
+	}
+	if len(params) != 0 {
+		t.Errorf("Expected 0 params for specific route, got %d", len(params))
+	}
+}
+
 func TestResponseFlushWithCookies(t *testing.T) {
 	req := httptest.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()

@@ -4,9 +4,11 @@ import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
+	"text/template"
 )
 
 func TestNewContext(t *testing.T) {
@@ -1686,5 +1688,201 @@ func TestContextFail(t *testing.T) {
 	expectedBody := `{"code":500,"message":"Internal Server Error"}`
 	if w.Body.String() != expectedBody {
 		t.Errorf("expected body %q, got %q", expectedBody, w.Body.String())
+	}
+}
+
+func TestContext_JSONError(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	ctx, _ := NewContext(w, req)
+
+	ctx.JSONError(400, "invalid request")
+	ctx.flush()
+
+	if w.Code != 400 {
+		t.Errorf("expected status code 400, got %d", w.Code)
+	}
+	expected := `{"code":400,"message":"invalid request"}`
+	if w.Body.String() != expected {
+		t.Errorf("expected body %q, got %q", expected, w.Body.String())
+	}
+}
+
+func TestContext_IsAjax(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected bool
+	}{
+		{"XMLHttpRequest", "XMLHttpRequest", true},
+		{"empty", "", false},
+		{"other", "fetch", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.header != "" {
+				req.Header.Set("X-Requested-With", tt.header)
+			}
+			w := httptest.NewRecorder()
+			ctx, _ := NewContext(w, req)
+
+			if got := ctx.IsAjax(); got != tt.expected {
+				t.Errorf("IsAjax() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestContext_IsWebSocket(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected bool
+	}{
+		{"websocket", "websocket", true},
+		{"empty", "", false},
+		{"http", "http/1.1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.header != "" {
+				req.Header.Set("Upgrade", tt.header)
+			}
+			w := httptest.NewRecorder()
+			ctx, _ := NewContext(w, req)
+
+			if got := ctx.IsWebSocket(); got != tt.expected {
+				t.Errorf("IsWebSocket() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestContext_ContentType(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	ctx, _ := NewContext(w, req)
+
+	if got := ctx.ContentType(); got != "application/json" {
+		t.Errorf("ContentType() = %v, want %v", got, "application/json")
+	}
+}
+
+func TestContext_AcceptedLanguages(t *testing.T) {
+	tests := []struct {
+		name     string
+		header   string
+		expected []string
+	}{
+		{"single", "en-US", []string{"en-US"}},
+		{"multiple", "en-US, zh-CN, fr", []string{"en-US", "zh-CN", "fr"}},
+		{"with quality", "en-US;q=0.9, zh-CN;q=0.8", []string{"en-US", "zh-CN"}},
+		{"empty", "", nil},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/", nil)
+			if tt.header != "" {
+				req.Header.Set("Accept-Language", tt.header)
+			}
+			w := httptest.NewRecorder()
+			ctx, _ := NewContext(w, req)
+
+			got := ctx.AcceptedLanguages()
+			if !equalStringSlices(got, tt.expected) {
+				t.Errorf("AcceptedLanguages() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func equalStringSlices(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func TestContext_File(t *testing.T) {
+	tmpFile, err := os.CreateTemp("", "test*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	content := []byte("test content")
+	if _, err := tmpFile.Write(content); err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.Close()
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	ctx, _ := NewContext(w, req)
+
+	err = ctx.File(tmpFile.Name())
+	if err != nil {
+		t.Errorf("File() returned error: %v", err)
+	}
+
+	ctx.SetStatus(200)
+	ctx.flush()
+
+	if w.Code != 200 {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+}
+
+func TestContext_FileNotFound(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	ctx, _ := NewContext(w, req)
+
+	err := ctx.File("/nonexistent/path/file.txt")
+	if err == nil {
+		t.Error("File() expected error for nonexistent file")
+	}
+}
+
+func TestContext_HTML(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "templates")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	tmplPath := tmpDir + "/test.html"
+	if err := os.WriteFile(tmplPath, []byte("<html>{{.Name}}</html>"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	app := NewApp()
+	app.SetFuncMap(template.FuncMap{})
+	app.LoadHTMLGlob(tmpDir + "/*.html")
+
+	app.Get("/test", func(ctx *Context) {
+		ctx.HTML(200, "test.html", map[string]string{"Name": "World"})
+	})
+
+	req := httptest.NewRequest("GET", "/test", nil)
+	w := httptest.NewRecorder()
+	app.ServeHTTP(w, req)
+
+	if w.Code != 200 {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "World") {
+		t.Errorf("expected body to contain 'World', got %q", w.Body.String())
 	}
 }

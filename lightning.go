@@ -181,18 +181,22 @@ func (app *Application) Group(prefix string) *Group {
 }
 
 // Static serves static files from the given root directory with the given prefix.
-// It uses the os.Executable function to get the path of the executable file,
-// and then joins it with the root and the path after the prefix to get the full file path.
+// If root is an absolute path, it is used directly. Otherwise, it is resolved relative
+// to the executable's directory.
 // If the file exists, it is served with a 200 status code using the http.ServeFile function.
 // If the file does not exist, a 404 status code is returned with the text "Not Found".
 func (app *Application) Static(root string, prefix string) {
 	exPath := ""
-	ex, err := os.Executable()
-	if err != nil {
-		app.Logger.Warn("Failed to get executable path for static files: %v, using current directory", err)
-		exPath = "."
+	if filepath.IsAbs(root) {
+		exPath = ""
 	} else {
-		exPath = filepath.Dir(ex)
+		ex, err := os.Executable()
+		if err != nil {
+			app.Logger.Warn("Failed to get executable path for static files: %v, using current directory", err)
+			exPath = "."
+		} else {
+			exPath = filepath.Dir(ex)
+		}
 	}
 
 	app.Get(path.Join(prefix, "/*"), func(ctx *Context) {

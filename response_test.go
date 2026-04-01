@@ -207,3 +207,83 @@ func TestSendFile(t *testing.T) {
 		t.Errorf("Expected response body %q, got %q", expectedBody, res.Body.String())
 	}
 }
+
+func TestResponse_FileNotFound(t *testing.T) {
+	resp := newResponse(nil, nil)
+	err := resp.file("/nonexistent/path/file.txt")
+	if err == nil {
+		t.Error("expected error for nonexistent file")
+	}
+}
+
+func TestResponse_FileInvalidPath(t *testing.T) {
+	resp := newResponse(nil, nil)
+	err := resp.file(string([]byte{0}))
+	if err == nil {
+		t.Error("expected error for invalid path")
+	}
+}
+
+func TestResponse_FlushWithCookies(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	resp := newResponse(req, w)
+
+	resp.setStatus(http.StatusOK)
+	resp.setBody([]byte("test"))
+	resp.cookies.set("session", "abc123")
+
+	resp.flush()
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
+	}
+
+	cookies := w.Result().Cookies()
+	if len(cookies) != 1 {
+		t.Errorf("expected 1 cookie, got %d", len(cookies))
+	}
+	if cookies[0].Name != "session" || cookies[0].Value != "abc123" {
+		t.Errorf("unexpected cookie: %v", cookies[0])
+	}
+}
+
+func TestResponse_FlushRedirect(t *testing.T) {
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	resp := newResponse(req, w)
+
+	resp.redirect(http.StatusMovedPermanently, "/new")
+	resp.flush()
+
+	if w.Code != http.StatusMovedPermanently {
+		t.Errorf("expected status %d, got %d", http.StatusMovedPermanently, w.Code)
+	}
+	if w.Header().Get("Location") != "/new" {
+		t.Errorf("expected Location /new, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestResponse_FlushFile(t *testing.T) {
+	file, err := os.CreateTemp("", "testfile")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+	file.WriteString("file content")
+	file.Close()
+
+	req := httptest.NewRequest("GET", "/", nil)
+	w := httptest.NewRecorder()
+	resp := newResponse(req, w)
+
+	resp.file(file.Name())
+	resp.flush()
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected status 200, got %d", w.Code)
+	}
+	if w.Body.String() != "file content" {
+		t.Errorf("expected body 'file content', got %s", w.Body.String())
+	}
+}

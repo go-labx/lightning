@@ -45,6 +45,10 @@ func (n *node) search(parts []string, height int) *node {
 		return nil
 	}
 
+	if n.IsWild && n.Pattern != "" {
+		return n
+	}
+
 	part := parts[height]
 	child := n.matchChild(part)
 
