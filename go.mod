@@ -1,6 +1,6 @@
 module github.com/go-labx/lightning
 
-go 1.19
+go 1.25
 
 require (
 	github.com/go-labx/lightlog v0.0.3
