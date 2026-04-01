@@ -33,7 +33,7 @@ func main() {
 		// write your logic here...
 		fmt.Println(session)
 
-		ctx.Text(200, "hello world")
+		ctx.Text(lightning.StatusOK, "hello world")
 	})
 
 	// Run the app

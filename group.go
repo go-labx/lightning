@@ -1,14 +1,11 @@
 package lightning
 
-import "net/http"
-
 // Group represents a group of routes with a common prefix and middleware.
 type Group struct {
-	app         *Application
-	parent      *Group
-	prefix      string
-	middlewares []HandlerFunc
-	// cachedMiddlewares caches the merged middleware chain to avoid repeated allocations
+	app               *Application
+	parent            *Group
+	prefix            string
+	middlewares       []HandlerFunc
 	cachedMiddlewares []HandlerFunc
 }
 
@@ -69,41 +66,40 @@ func (g *Group) AddRoute(method string, pattern string, handlers []HandlerFunc) 
 // Use adds the given middleware functions to the Group's middleware stack.
 func (g *Group) Use(middlewares ...HandlerFunc) {
 	g.middlewares = append(g.middlewares, middlewares...)
-	// Invalidate cache when middleware changes
 	g.cachedMiddlewares = nil
 }
 
 // Get adds a new GET route to the Application with the given pattern and handlers.
 func (g *Group) Get(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodGet, pattern, handlers)
+	g.AddRoute(MethodGet, pattern, handlers)
 }
 
 // Post adds a new POST route to the Application with the given pattern and handlers.
 func (g *Group) Post(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodPost, pattern, handlers)
+	g.AddRoute(MethodPost, pattern, handlers)
 }
 
 // Put adds a new PUT route to the Application with the given pattern and handlers.
 func (g *Group) Put(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodPut, pattern, handlers)
+	g.AddRoute(MethodPut, pattern, handlers)
 }
 
 // Delete adds a new DELETE route to the Application with the given pattern and handlers.
 func (g *Group) Delete(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodDelete, pattern, handlers)
+	g.AddRoute(MethodDelete, pattern, handlers)
 }
 
 // Head adds a new HEAD route to the Application with the given pattern and handlers.
 func (g *Group) Head(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodHead, pattern, handlers)
+	g.AddRoute(MethodHead, pattern, handlers)
 }
 
 // Options adds a new OPTIONS route to the Application with the given pattern and handlers.
 func (g *Group) Options(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodOptions, pattern, handlers)
+	g.AddRoute(MethodOptions, pattern, handlers)
 }
 
 // Patch adds a new PATCH route to the Application with the given pattern and handlers.
 func (g *Group) Patch(pattern string, handlers ...HandlerFunc) {
-	g.AddRoute(http.MethodPatch, pattern, handlers)
+	g.AddRoute(MethodPatch, pattern, handlers)
 }

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/go-labx/lightning"
 )
 
@@ -21,7 +19,7 @@ func main() {
 		// delete all headers with key "bar"
 		ctx.DelHeader("bar")
 
-		ctx.JSON(http.StatusOK, lightning.Map{
+		ctx.JSON(lightning.StatusOK, lightning.Map{
 			"message": "pong",
 		})
 	})

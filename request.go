@@ -1,115 +1,117 @@
 package lightning
 
 import (
-	"io"
-	"net/http"
 	"strings"
+
+	"github.com/valyala/fasthttp"
 )
 
 type request struct {
-	originReq *http.Request
-	paramsMap map[string]string
-	method    string
-	path      string
-	rawBody   []byte
+	ctx        *fasthttp.RequestCtx
+	pathParams map[string]string
 }
 
-// newRequest creates a new request object from an http.Request object
-func newRequest(req *http.Request) (*request, error) {
-	var rawBody []byte
-	var err error
-	if req.Body != nil {
-		rawBody, err = io.ReadAll(req.Body)
-		if err != nil {
-			return nil, err
-		}
+func newRequest(ctx *fasthttp.RequestCtx) *request {
+	return &request{
+		ctx:        ctx,
+		pathParams: make(map[string]string),
 	}
-
-	request := &request{
-		originReq: req,
-		paramsMap: map[string]string{},
-		method:    req.Method,
-		path:      req.URL.Path,
-		rawBody:   rawBody,
-	}
-
-	return request, nil
 }
 
-// setParams sets the parameters for the request object
 func (r *request) setParams(params map[string]string) {
-	r.paramsMap = params
+	r.pathParams = params
 }
 
-// param returns the parameter value for a given key.
 func (r *request) param(key string) string {
-	return r.paramsMap[key]
+	return r.pathParams[key]
 }
 
-// params returns the entire parameter map for the context.
 func (r *request) params() map[string]string {
-	return r.paramsMap
+	return r.pathParams
 }
 
-// query returns the value of a given query parameter.
 func (r *request) query(key string) string {
-	return r.originReq.URL.Query().Get(key)
+	return string(r.ctx.QueryArgs().Peek(key))
 }
 
-// queries returns the entire query parameter map for the context.
 func (r *request) queries() map[string][]string {
-	return r.originReq.URL.Query()
+	args := r.ctx.QueryArgs()
+	queries := make(map[string][]string)
+	args.VisitAll(func(key, value []byte) {
+		queries[string(key)] = append(queries[string(key)], string(value))
+	})
+	return queries
 }
 
-// header returns the value of a given header.
 func (r *request) header(key string) string {
-	return r.originReq.Header.Get(key)
+	return string(r.ctx.Request.Header.Peek(key))
 }
 
-// headers returns the entire header map for the request.
-func (r *request) headers() http.Header {
-	return r.originReq.Header
+func (r *request) headers() map[string]string {
+	headers := make(map[string]string)
+	r.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+	return headers
 }
 
-// cookie returns the cookie with the given name.
-func (r *request) cookie(name string) *http.Cookie {
-	cookie, err := r.originReq.Cookie(name)
-	if err != nil {
-		return nil
+func (r *request) cookie(name string) *fasthttp.Cookie {
+	var cookie fasthttp.Cookie
+	cookie.ParseBytes(r.ctx.Request.Header.Cookie(name))
+	if len(cookie.Key()) > 0 {
+		return &cookie
 	}
-	return cookie
+	return nil
 }
 
-// cookiesMap returns all cookies from the request.
-func (r *request) cookies() []*http.Cookie {
-	return r.originReq.Cookies()
+func (r *request) cookies() []*fasthttp.Cookie {
+	var cookies []*fasthttp.Cookie
+	r.ctx.Request.Header.VisitAll(func(key, value []byte) {
+		if string(key) == "Cookie" {
+			var c fasthttp.Cookie
+			c.ParseBytes(value)
+			cookies = append(cookies, &c)
+		}
+	})
+	return cookies
 }
 
-// userAgent returns the user agent header value of the request.
 func (r *request) userAgent() string {
-	return r.header("user-agent")
+	return string(r.ctx.Request.Header.UserAgent())
 }
 
-// referer returns the referer header value of the request.
 func (r *request) referer() string {
-	return r.header("referer")
+	return string(r.ctx.Request.Header.Referer())
 }
 
-// remoteAddr returns the remote address of the request.
 func (r *request) remoteAddr() string {
-	ip := r.header("x-real-ip")
+	ip := r.header("X-Real-IP")
 	if ip == "" {
-		ip = r.header("x-forwarded-for")
+		ip = r.header("X-Forwarded-For")
 		if ip != "" {
-			// X-Forwarded-For may contain multiple IPs: client, proxy1, proxy2
-			// Take the first one (client IP)
 			if idx := strings.Index(ip, ","); idx != -1 {
 				ip = strings.TrimSpace(ip[:idx])
 			}
 		}
 	}
 	if ip == "" {
-		ip = r.originReq.RemoteAddr
+		ip = r.ctx.RemoteAddr().String()
 	}
 	return ip
+}
+
+func (r *request) body() []byte {
+	return r.ctx.Request.Body()
+}
+
+func (r *request) method() string {
+	return string(r.ctx.Request.Header.Method())
+}
+
+func (r *request) path() string {
+	return string(r.ctx.Path())
+}
+
+func (r *request) uri() string {
+	return string(r.ctx.URI().FullURI())
 }

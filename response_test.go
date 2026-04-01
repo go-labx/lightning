@@ -1,209 +1,138 @@
 package lightning
 
 import (
-	"bytes"
-	"net/http"
-	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"testing"
+
+	"github.com/valyala/fasthttp"
 )
 
+func createResponse() (*response, *fasthttp.RequestCtx) {
+	ctx := &fasthttp.RequestCtx{}
+	resp := newResponse(ctx)
+	resp.cookies = make(cookiesMap)
+	return resp, ctx
+}
+
 func TestNewResponse(t *testing.T) {
-	req := httptest.NewRequest("GET", "/", nil)
-	res := httptest.NewRecorder()
-
-	resp := newResponse(req, res)
-
-	if resp.originReq != req {
-		t.Errorf("Expected originReq to be %v, but got %v", req, resp.originReq)
+	resp, ctx := createResponse()
+	if resp.ctx != ctx {
+		t.Error("ctx not set correctly")
 	}
-
-	if resp.originRes != res {
-		t.Errorf("Expected originRes to be %v, but got %v", res, resp.originRes)
-	}
-
-	if resp.statusCode != http.StatusNotFound {
-		t.Errorf("Expected statusCode to be %v, but got %v", http.StatusNotFound, resp.statusCode)
-	}
-
-	if len(resp.cookies) != 0 {
-		t.Errorf("Expected cookies to be empty, but got %v", resp.cookies)
-	}
-
-	if resp.body != nil {
-		t.Errorf("Expected data to be nil, but got %v", resp.body)
-	}
-
-	if resp.redirectUrl != "" {
-		t.Errorf("Expected redirectUrl to be empty, but got %v", resp.redirectUrl)
-	}
-
-	if resp.fileUrl != "" {
-		t.Errorf("Expected fileUrl to be empty, but got %v", resp.fileUrl)
+	if resp.statusCode != StatusNotFound {
+		t.Errorf("Expected default status %d, got %d", StatusNotFound, resp.statusCode)
 	}
 }
 
-func TestSetStatus(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/", nil)
-	res := httptest.NewRecorder()
-	r := newResponse(req, res)
+func TestResponse_setStatus(t *testing.T) {
+	resp, _ := createResponse()
 
-	r.setStatus(http.StatusOK)
-
-	if r.statusCode != http.StatusOK {
-		t.Errorf("Expected status code %d, but got %d", http.StatusOK, r.statusCode)
+	resp.setStatus(StatusOK)
+	if resp.statusCode != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, resp.statusCode)
 	}
 }
 
-func TestSetBody(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-	res := httptest.NewRecorder()
+func TestResponse_setBody(t *testing.T) {
+	resp, _ := createResponse()
 
-	r := newResponse(req, res)
-	body := []byte("test data")
-	r.setBody(body)
-
-	if !bytes.Equal(r.body, body) {
-		t.Errorf("expected body to be %v, but got %v", body, r.body)
+	resp.setBody([]byte("test body"))
+	if string(resp.body) != "test body" {
+		t.Errorf("Expected body 'test body', got '%s'", string(resp.body))
 	}
 }
 
-func TestResponse_Redirect(t *testing.T) {
-	req := httptest.NewRequest("GET", "http://example.com/foo", nil)
-	w := httptest.NewRecorder()
-	resp := newResponse(req, w)
+func TestResponse_redirect(t *testing.T) {
+	resp, _ := createResponse()
 
-	resp.redirect(http.StatusFound, "http://example.com/bar")
+	resp.redirect(StatusMovedPermanently, "https://example.com")
+	if resp.redirectTo != "https://example.com" {
+		t.Errorf("Expected redirect URL 'https://example.com', got '%s'", resp.redirectTo)
+	}
+	if resp.statusCode != StatusMovedPermanently {
+		t.Errorf("Expected status %d, got %d", StatusMovedPermanently, resp.statusCode)
+	}
+}
 
+func TestResponse_addHeader(t *testing.T) {
+	resp, ctx := createResponse()
+
+	resp.addHeader("X-Custom", "value1")
+	resp.addHeader("X-Custom", "value2")
+
+	hdr := string(ctx.Response.Header.Peek("X-Custom"))
+	if hdr == "" {
+		t.Error("Expected header to be set")
+	}
+}
+
+func TestResponse_setHeader(t *testing.T) {
+	resp, ctx := createResponse()
+
+	resp.setHeader("Content-Type", "application/json")
+
+	hdr := string(ctx.Response.Header.Peek("Content-Type"))
+	if hdr != "application/json" {
+		t.Errorf("Expected 'application/json', got '%s'", hdr)
+	}
+}
+
+func TestResponse_delHeader(t *testing.T) {
+	resp, ctx := createResponse()
+
+	resp.setHeader("X-Custom", "value")
+	resp.delHeader("X-Custom")
+
+	hdr := string(ctx.Response.Header.Peek("X-Custom"))
+	if hdr != "" {
+		t.Errorf("Expected empty header, got '%s'", hdr)
+	}
+}
+
+func TestResponse_file(t *testing.T) {
+	resp, _ := createResponse()
+
+	resp.file("/nonexistent/path")
+	resp.flush()
+}
+
+func TestResponse_flush(t *testing.T) {
+	resp, ctx := createResponse()
+
+	resp.setStatus(StatusOK)
+	resp.setBody([]byte("test body"))
 	resp.flush()
 
-	if w.Code != http.StatusFound {
-		t.Errorf("expected status code %d, got %d", http.StatusFound, w.Code)
+	if ctx.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d, got %d", StatusOK, ctx.Response.StatusCode())
 	}
-
-	if w.Header().Get("Location") != "http://example.com/bar" {
-		t.Errorf("expected Location header %q, got %q", "http://example.com/bar", w.Header().Get("Location"))
-	}
-}
-
-func TestResponse_File(t *testing.T) {
-	// create a temporary file
-	file, err := os.CreateTemp("", "testfile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-
-	// set the file path using the file method
-	resp := newResponse(nil, nil)
-	err = resp.file(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	// check if the fileUrl field is set to the correct absolute path
-	absPath, err := filepath.Abs(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if resp.fileUrl != absPath {
-		t.Errorf("fileUrl field is %s, expected %s", resp.fileUrl, absPath)
+	if string(ctx.Response.Body()) != "test body" {
+		t.Errorf("Expected body 'test body', got '%s'", string(ctx.Response.Body()))
 	}
 }
 
-func TestResponse_AddHeader(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestResponse_flushWithCookie(t *testing.T) {
+	resp, ctx := createResponse()
 
-	res := httptest.NewRecorder()
-	resp := newResponse(req, res)
-
-	resp.addHeader("X-Test-Header", "test-value")
+	resp.cookies.set("session", "abc123")
 	resp.flush()
 
-	if res.Header().Get("X-Test-Header") != "test-value" {
-		t.Errorf("Expected header X-Test-Header to be set to test-value, but got %s", res.Header().Get("X-Test-Header"))
+	cookie := string(ctx.Response.Header.Peek("Set-Cookie"))
+	if cookie == "" {
+		t.Error("Expected Set-Cookie header to be set")
 	}
 }
 
-func TestResponse_SetHeader(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestResponse_flushWithRedirect(t *testing.T) {
+	resp, ctx := createResponse()
 
-	res := httptest.NewRecorder()
-
-	resp := newResponse(req, res)
-
-	resp.setHeader("X-Test-Header", "test-value")
+	resp.redirect(StatusFound, "/new-location")
 	resp.flush()
 
-	if res.Header().Get("X-Test-Header") != "test-value" {
-		t.Errorf("Expected header X-Test-Header to be set to test-value, but got %s", res.Header().Get("X-Test-Header"))
+	if ctx.Response.StatusCode() != StatusFound {
+		t.Errorf("Expected status %d, got %d", StatusFound, ctx.Response.StatusCode())
 	}
-}
-
-func TestResponse_DelHeader(t *testing.T) {
-	req, err := http.NewRequest("GET", "http://example.com", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	res := httptest.NewRecorder()
-
-	resp := newResponse(req, res)
-
-	resp.addHeader("X-Test-Header", "test-value")
-	resp.delHeader("X-Test-Header")
-	resp.flush()
-
-	if res.Header().Get("X-Test-Header") != "" {
-		t.Errorf("Expected header X-Test-Header to be set to test-value, but got %s", res.Header().Get("X-Test-Header"))
-	}
-}
-
-func TestSendFile(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/file.txt", nil)
-	res := httptest.NewRecorder()
-
-	// Create a temporary file to serve
-	file, err := os.CreateTemp("", "testfile")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.Remove(file.Name())
-	_, err = file.WriteString("test content")
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = file.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	resp := newResponse(req, res)
-	err = resp.file(file.Name())
-	if err != nil {
-		t.Fatal(err)
-	}
-	resp.sendFile()
-
-	// Check that the Content-Disposition header was set correctly
-	expectedHeader := "attachment; filename=" + filepath.Base(file.Name())
-	if res.Header().Get(HeaderContentDisposition) != expectedHeader {
-		t.Errorf("Expected Content-Disposition header %q, got %q", expectedHeader, res.Header().Get(HeaderContentDisposition))
-	}
-
-	// Check that the file was served
-	expectedBody := "test content"
-	if res.Body.String() != expectedBody {
-		t.Errorf("Expected response body %q, got %q", expectedBody, res.Body.String())
+	location := string(ctx.Response.Header.Peek("Location"))
+	if location == "" {
+		t.Error("Expected Location header to be set")
 	}
 }

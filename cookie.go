@@ -1,32 +1,14 @@
 package lightning
 
-import (
-	"net/http"
-)
+// cookiesMap is a map of cookie values keyed by cookie name.
+type cookiesMap map[string]string
 
-// cookiesMap is a map of http.Cookie pointers.
-type cookiesMap map[string]*http.Cookie
-
-// get returns the http.Cookie pointer with the given key.
-func (cookies cookiesMap) get(key string) *http.Cookie {
-	return cookies[key]
-}
-
-// set sets the http.Cookie with the given key and value.
+// set sets the cookie value with the given key.
 func (cookies cookiesMap) set(key string, value string) {
-	cookies[key] = &http.Cookie{
-		Name:  key,
-		Value: value,
-		Path:  "/",
-	}
+	cookies[key] = value
 }
 
-// del deletes the http.Cookie with the given key.
+// del deletes the cookie with the given key.
 func (cookies cookiesMap) del(key string) {
 	delete(cookies, key)
-}
-
-// setCustom sets the given http.Cookie pointer.
-func (cookies cookiesMap) setCustom(cookie *http.Cookie) {
-	cookies[cookie.Name] = cookie
 }

@@ -1,8 +1,6 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/go-labx/lightning"
 )
 
@@ -17,12 +15,12 @@ func main() {
 
 	app.Get("/text", func(ctx *lightning.Context) {
 		// Return "hello world" as plain text
-		ctx.Text(http.StatusOK, "hello world")
+		ctx.Text(lightning.StatusOK, "hello world")
 	})
 
 	app.Get("/json", func(ctx *lightning.Context) {
 		// Return a Person object as JSON with name "zhangsan", age 20, and city "Hangzhou"
-		ctx.JSON(http.StatusOK, &Person{
+		ctx.JSON(lightning.StatusOK, &Person{
 			Name: "zhangsan",
 			Age:  20,
 			City: "Hangzhou",
@@ -31,7 +29,7 @@ func main() {
 
 	app.Get("/xml", func(ctx *lightning.Context) {
 		// Return a Person object as XML with name "zhangsan", age 20, and city "Hangzhou"
-		ctx.XML(http.StatusOK, &Person{
+		ctx.XML(lightning.StatusOK, &Person{
 			Name: "zhangsan",
 			Age:  20,
 			City: "Hangzhou",
