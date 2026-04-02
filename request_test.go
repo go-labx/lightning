@@ -23,13 +23,13 @@ func TestRequest_Cookie(t *testing.T) {
 	r := newRequest(ctx)
 
 	cookie := r.cookie("cookie1")
-	if cookie != nil && string(cookie.Key()) != "cookie1" {
-		t.Errorf("Expected cookie key 'cookie1', got '%s'", string(cookie.Key()))
+	if cookie != "value1" {
+		t.Errorf("Expected cookie value 'value1', got '%s'", cookie)
 	}
 
 	cookie = r.cookie("nonexistent")
-	if cookie != nil {
-		t.Errorf("Expected nil for nonexistent cookie, got %v", cookie)
+	if cookie != "" {
+		t.Errorf("Expected empty string for nonexistent cookie, got '%s'", cookie)
 	}
 }
 
@@ -43,8 +43,14 @@ func TestRequest_Cookies(t *testing.T) {
 	r := newRequest(ctx)
 	cookies := r.cookies()
 
-	if len(cookies) == 0 {
-		t.Error("Expected cookies, got empty")
+	if len(cookies) != 2 {
+		t.Errorf("Expected 2 cookies, got %d", len(cookies))
+	}
+	if cookies["cookie1"] != "value1" {
+		t.Errorf("Expected cookie1 value 'value1', got '%s'", cookies["cookie1"])
+	}
+	if cookies["cookie2"] != "value2" {
+		t.Errorf("Expected cookie2 value 'value2', got '%s'", cookies["cookie2"])
 	}
 }
 

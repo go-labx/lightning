@@ -297,13 +297,13 @@ func (c *Context) DelHeader(key string) {
 	c.res.delHeader(key)
 }
 
-// Cookie returns the cookie with the given name.
-func (c *Context) Cookie(name string) *fasthttp.Cookie {
+// Cookie returns the cookie value with the given name.
+func (c *Context) Cookie(name string) string {
 	return c.req.cookie(name)
 }
 
 // Cookies returns all cookies from the request.
-func (c *Context) Cookies() []*fasthttp.Cookie {
+func (c *Context) Cookies() map[string]string {
 	return c.req.cookies()
 }
 
