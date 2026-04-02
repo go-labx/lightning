@@ -11,13 +11,13 @@ func main() {
 
 	app.Get("/ping", func(ctx *lightning.Context) {
 		cookie := ctx.Cookie("sid")
-		if cookie != nil {
-			fmt.Println(string(cookie.Key()), string(cookie.Value()))
+		if cookie != "" {
+			fmt.Println("sid", cookie)
 		}
 
 		cookies := ctx.Cookies()
-		for _, c := range cookies {
-			fmt.Println(string(c.Key()), string(c.Value()))
+		for name, value := range cookies {
+			fmt.Println(name, value)
 		}
 
 		ctx.SetCookie("sid", "sid:xxxxxxxxxx")

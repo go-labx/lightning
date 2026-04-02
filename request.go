@@ -55,23 +55,14 @@ func (r *request) headers() map[string]string {
 	return headers
 }
 
-func (r *request) cookie(name string) *fasthttp.Cookie {
-	var cookie fasthttp.Cookie
-	cookie.ParseBytes(r.ctx.Request.Header.Cookie(name))
-	if len(cookie.Key()) > 0 {
-		return &cookie
-	}
-	return nil
+func (r *request) cookie(name string) string {
+	return string(r.ctx.Request.Header.Cookie(name))
 }
 
-func (r *request) cookies() []*fasthttp.Cookie {
-	var cookies []*fasthttp.Cookie
-	r.ctx.Request.Header.VisitAll(func(key, value []byte) {
-		if string(key) == "Cookie" {
-			var c fasthttp.Cookie
-			c.ParseBytes(value)
-			cookies = append(cookies, &c)
-		}
+func (r *request) cookies() map[string]string {
+	cookies := make(map[string]string)
+	r.ctx.Request.Header.VisitAllCookie(func(key, value []byte) {
+		cookies[string(key)] = string(value)
 	})
 	return cookies
 }
