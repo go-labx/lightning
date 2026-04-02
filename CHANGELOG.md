@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **BREAKING**: `Cookie()` return type changed from `*fasthttp.Cookie` to `string`
+- **BREAKING**: `Cookies()` return type changed from `[]*fasthttp.Cookie` to `map[string]string`
+
+### Fixed
+
+- Fixed dangling pointer bug in internal `cookie()` method
+
 ## [0.9.0] - Apr 1, 2026
 
 ### Added

@@ -613,10 +613,8 @@ func TestCookie(t *testing.T) {
 	c.ctx.Request.Header.SetCookie("test", "value")
 
 	cookie := c.Cookie("test")
-	if cookie != nil {
-		if string(cookie.Key()) != "test" {
-			t.Errorf("Expected cookie key 'test', got '%s'", string(cookie.Key()))
-		}
+	if cookie != "value" {
+		t.Errorf("Expected cookie value 'value', got '%s'", cookie)
 	}
 }
 
@@ -624,8 +622,8 @@ func TestCookieNotFound(t *testing.T) {
 	c, _ := createTestContext("GET", "/path", nil)
 
 	cookie := c.Cookie("nonexistent")
-	if cookie != nil {
-		t.Errorf("Expected nil for nonexistent cookie, got %v", cookie)
+	if cookie != "" {
+		t.Errorf("Expected empty string for nonexistent cookie, got '%s'", cookie)
 	}
 }
 
@@ -996,8 +994,14 @@ func TestContext_Cookies(t *testing.T) {
 	c.req = newRequest(ctx)
 
 	cookies := c.Cookies()
-	if len(cookies) == 0 {
-		t.Error("Expected cookies to be non-empty")
+	if len(cookies) != 2 {
+		t.Errorf("Expected 2 cookies, got %d", len(cookies))
+	}
+	if cookies["session"] != "abc" {
+		t.Errorf("Expected session value 'abc', got '%s'", cookies["session"])
+	}
+	if cookies["theme"] != "dark" {
+		t.Errorf("Expected theme value 'dark', got '%s'", cookies["theme"])
 	}
 }
 
@@ -1557,8 +1561,8 @@ func TestContext_CookieNotFound(t *testing.T) {
 	c, _ := createTestContext("GET", "/test", nil)
 
 	cookie := c.Cookie("nonexistent")
-	if cookie != nil {
-		t.Errorf("Expected nil for nonexistent cookie, got %v", cookie)
+	if cookie != "" {
+		t.Errorf("Expected empty string for nonexistent cookie, got '%s'", cookie)
 	}
 }
 
