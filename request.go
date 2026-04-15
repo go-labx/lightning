@@ -9,6 +9,7 @@ import (
 type request struct {
 	ctx        *fasthttp.RequestCtx
 	pathParams map[string]string
+	app        *Application
 }
 
 func newRequest(ctx *fasthttp.RequestCtx) *request {
@@ -76,19 +77,21 @@ func (r *request) referer() string {
 }
 
 func (r *request) remoteAddr() string {
-	ip := r.header("X-Real-IP")
-	if ip == "" {
-		ip = r.header("X-Forwarded-For")
-		if ip != "" {
+	remoteIPStr := r.ctx.RemoteAddr().String()
+
+	if r.app != nil && r.app.isTrustedProxy(remoteIPStr) {
+		if ip := r.header("X-Real-IP"); ip != "" {
+			return ip
+		}
+		if ip := r.header("X-Forwarded-For"); ip != "" {
 			if idx := strings.Index(ip, ","); idx != -1 {
-				ip = strings.TrimSpace(ip[:idx])
+				return strings.TrimSpace(ip[:idx])
 			}
+			return ip
 		}
 	}
-	if ip == "" {
-		ip = r.ctx.RemoteAddr().String()
-	}
-	return ip
+
+	return remoteIPStr
 }
 
 func (r *request) body() []byte {

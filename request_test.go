@@ -197,6 +197,7 @@ func TestRequest_remoteAddrWithXRealIP(t *testing.T) {
 	ctx.Request.Header.Set("X-Real-IP", "1.2.3.4")
 
 	r := newRequest(ctx)
+	r.app = NewApp(&Config{TrustedProxies: []string{"0.0.0.0/0"}})
 	addr := r.remoteAddr()
 
 	if addr != "1.2.3.4" {
@@ -211,6 +212,7 @@ func TestRequest_remoteAddrWithXForwardedFor(t *testing.T) {
 	ctx.Request.Header.Set("X-Forwarded-For", "1.2.3.4, 5.6.7.8")
 
 	r := newRequest(ctx)
+	r.app = NewApp(&Config{TrustedProxies: []string{"0.0.0.0/0"}})
 	addr := r.remoteAddr()
 
 	if addr != "1.2.3.4" {

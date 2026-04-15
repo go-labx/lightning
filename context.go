@@ -3,6 +3,9 @@ package lightning
 import (
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -308,8 +311,16 @@ func (c *Context) Cookies() map[string]string {
 }
 
 // SetCookie sets a new cookie with the given key-value pair.
+// Deprecated: Use SetCookieWithConfig for proper security attributes (HttpOnly, Secure, SameSite).
 func (c *Context) SetCookie(key string, value string) {
 	c.res.cookies.set(key, value)
+}
+
+// SetCookieWithConfig sets a cookie with full security configuration.
+func (c *Context) SetCookieWithConfig(config CookieConfig) {
+	var fc fasthttp.Cookie
+	setCookieWithConfig(&fc, config)
+	c.ctx.Response.Header.SetCookie(&fc)
 }
 
 // Body returns the response body.
@@ -330,6 +341,9 @@ func (c *Context) JSON(code int, obj any) {
 	}
 	encodeData, err := encode(obj)
 	if err != nil {
+		c.res.setHeader(HeaderContentType, MIMEApplicationJSONCharsetUTF8)
+		c.res.setStatus(StatusInternalServerError)
+		c.res.setBody([]byte(`{"code":500,"message":"Internal Server Error"}`))
 		return
 	}
 
@@ -352,7 +366,10 @@ func (c *Context) HTML(code int, name string, data any) {
 
 	var buf strings.Builder
 	if err := c.App.htmlTemplates.ExecuteTemplate(&buf, name, data); err != nil {
-		c.Text(500, err.Error())
+		if c.App != nil && c.App.Logger != nil {
+			c.App.Logger.Error("template execution error: %v", err)
+		}
+		c.Text(StatusInternalServerError, "Internal Server Error")
 		return
 	}
 	c.SetBody([]byte(buf.String()))
@@ -371,8 +388,31 @@ func (c *Context) XML(code int, obj any) {
 }
 
 // File writes a file as the response.
+// WARNING: The caller MUST validate that the path does not contain user-controlled
+// input that could lead to directory traversal. Use FileFromSafeDir for safer file serving.
 func (c *Context) File(filepath string) error {
 	return c.res.file(filepath)
+}
+
+// FileFromSafeDir serves a file from the specified safe directory, preventing path traversal.
+// It validates that the resolved file path stays within safeDir.
+func (c *Context) FileFromSafeDir(safeDir string, requestPath string) error {
+	cleanPath := filepath.Clean(requestPath)
+	if strings.Contains(cleanPath, "..") {
+		return fmt.Errorf("invalid file path: path traversal detected")
+	}
+
+	absSafeDir, err := filepath.Abs(safeDir)
+	if err != nil {
+		return err
+	}
+
+	fullPath := filepath.Clean(filepath.Join(absSafeDir, cleanPath))
+	if !strings.HasPrefix(fullPath, absSafeDir+string(os.PathSeparator)) && fullPath != absSafeDir {
+		return fmt.Errorf("access denied: path escapes safe directory")
+	}
+
+	return c.File(fullPath)
 }
 
 // GetData returns the value of a custom data field for the context.
@@ -391,8 +431,36 @@ func (c *Context) DelData(key string) {
 }
 
 // Redirect redirects the request to a new URL with the given status code.
+// WARNING: Do not pass user-controlled input directly. Use RedirectSafe instead.
 func (c *Context) Redirect(code int, url string) {
 	c.res.redirect(code, url)
+}
+
+// RedirectSafe performs a redirect only if the URL is a safe relative path
+// or belongs to one of the allowed hosts.
+func (c *Context) RedirectSafe(code int, url string, allowedHosts ...string) error {
+	if !isSafeRedirectURL(url, allowedHosts...) {
+		return fmt.Errorf("unsafe redirect URL: %s", url)
+	}
+	c.res.redirect(code, url)
+	return nil
+}
+
+// isSafeRedirectURL validates that a redirect URL is safe.
+func isSafeRedirectURL(url string, allowedHosts ...string) bool {
+	if url == "" {
+		return false
+	}
+	if strings.HasPrefix(url, "/") && !strings.HasPrefix(url, "//") {
+		return true
+	}
+	for _, host := range allowedHosts {
+		if strings.HasPrefix(url, "http://"+host+"/") || strings.HasPrefix(url, "https://"+host+"/") ||
+			"http://"+host == url || "https://"+host == url {
+			return true
+		}
+	}
+	return false
 }
 
 // UserAgent returns the user agent of the request.

@@ -1035,6 +1035,7 @@ func TestContext_RemoteAddrWithXRealIP(t *testing.T) {
 		data:  contextData{},
 	}
 	c.req = newRequest(ctx)
+	c.req.app = NewApp(&Config{TrustedProxies: []string{"0.0.0.0/0"}})
 
 	addr := c.RemoteAddr()
 	if addr != "1.2.3.4" {
@@ -1054,6 +1055,7 @@ func TestContext_RemoteAddrWithXForwardedFor(t *testing.T) {
 		data:  contextData{},
 	}
 	c.req = newRequest(ctx)
+	c.req.app = NewApp(&Config{TrustedProxies: []string{"0.0.0.0/0"}})
 
 	addr := c.RemoteAddr()
 	if addr != "1.2.3.4" {

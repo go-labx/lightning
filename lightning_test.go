@@ -32,8 +32,8 @@ func TestDefaultApp(t *testing.T) {
 		t.Errorf("Expected Logger field to not be nil")
 	}
 
-	if len(app.middlewares) != 2 {
-		t.Errorf("Expected 2 middleware functions, but got %d", len(app.middlewares))
+	if len(app.middlewares) != 3 {
+		t.Errorf("Expected 3 middleware functions, but got %d", len(app.middlewares))
 	}
 }
 
