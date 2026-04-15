@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.11.0] - Apr 15, 2026
+
+### Added
+
+- `Config.TrustedProxies` — CIDR whitelist for trusted proxy IPs, preventing IP spoofing via `X-Real-IP` / `X-Forwarded-For` headers
+- `Config.DebugToken` — token-based authentication for the `__debug__/router_map` endpoint
+- `ctx.SetCookieWithConfig(CookieConfig)` — cookie setter with `HttpOnly`, `Secure`, `SameSite`, `Path`, `Domain`, `MaxAge` attributes
+- `ctx.FileFromSafeDir(safeDir, path)` — safe file serving that prevents directory traversal
+- `ctx.RedirectSafe(code, url, allowedHosts...)` — redirect with host whitelist validation to prevent open redirects
+- `Helmet()` middleware — sets `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy` security headers
+- `CookieConfig` struct for full cookie security configuration
+- Comprehensive security-focused tests (coverage 84.6% → 96.1%)
+
+### Changed
+
+- **BREAKING**: `RemoteAddr()` no longer trusts `X-Real-IP` / `X-Forwarded-For` by default; requires `TrustedProxies` config
+- **BREAKING**: `SetCookie(key, value)` is deprecated in favor of `SetCookieWithConfig`
+- `DefaultApp()` now registers `Helmet()` middleware by default
+- `Static()` file serving now validates resolved paths to prevent directory traversal attacks
+- Template execution errors no longer leak internal details to clients
+- JSON encoding failures now return HTTP 500 instead of silently returning 404
+- `Content-Disposition` header in file downloads now properly escapes filenames
+
+### Fixed
+
+- Path traversal vulnerability in `Static()` file serving (CVE candidate)
+- Path traversal vulnerability in `File()` response method
+- IP address spoofing via `X-Real-IP` and `X-Forwarded-For` headers
+- Unprotected debug endpoint exposing full routing table
+- Template error details leaked to clients
+- Open redirect via user-controlled `Redirect()` input
+- Content-Disposition header injection via malicious filenames
+- Cookie missing security attributes (`HttpOnly`, `Secure`, `SameSite`)
+
 ## [0.10.0] - Apr 2, 2026
 
 ### Changed

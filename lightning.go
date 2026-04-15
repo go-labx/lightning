@@ -2,6 +2,7 @@ package lightning
 
 import (
 	"encoding/json"
+	"net"
 	"os"
 	"os/signal"
 	"path"
@@ -34,9 +35,10 @@ type Application struct {
 
 	Logger *lightlog.ConsoleLogger
 
-	server      *fasthttp.Server
-	mu          sync.Mutex
-	contextPool sync.Pool
+	server         *fasthttp.Server
+	mu             sync.Mutex
+	contextPool    sync.Pool
+	trustedProxies []*net.IPNet
 }
 
 // Config holds the configuration for the Application.
@@ -46,7 +48,9 @@ type Config struct {
 	JSONDecoder        JSONUnmarshal
 	NotFoundHandler    HandlerFunc
 	EnableDebug        bool
+	DebugToken         string
 	MaxRequestBodySize int64
+	TrustedProxies     []string
 }
 
 // merge merges the given Config structs into the current Config.
@@ -72,6 +76,12 @@ func (c *Config) merge(configs ...*Config) *Config {
 		}
 		if cfg.MaxRequestBodySize > 0 {
 			c.MaxRequestBodySize = cfg.MaxRequestBodySize
+		}
+		if cfg.TrustedProxies != nil {
+			c.TrustedProxies = cfg.TrustedProxies
+		}
+		if cfg.DebugToken != "" {
+			c.DebugToken = cfg.DebugToken
 		}
 	}
 	return c
@@ -114,9 +124,18 @@ func NewApp(c ...*Config) *Application {
 		},
 	}
 	app.middlewares = make([]HandlerFunc, 0)
+	app.parseTrustedProxies()
 
 	if app.Config.EnableDebug {
+		debugToken := app.Config.DebugToken
 		app.Get("/__debug__/router_map", func(ctx *Context) {
+			if debugToken != "" {
+				token := ctx.Query("token")
+				if token != debugToken {
+					ctx.Text(StatusUnauthorized, "Unauthorized")
+					return
+				}
+			}
 			ctx.JSON(200, app.router.Roots)
 		})
 	}
@@ -127,6 +146,7 @@ func NewApp(c ...*Config) *Application {
 // DefaultApp returns a new instance of the Application struct with default middlewares
 func DefaultApp() *Application {
 	app := NewApp()
+	app.Use(Helmet())
 	app.Use(Logger())
 	app.Use(Recovery())
 
@@ -195,6 +215,7 @@ func (app *Application) Group(prefix string) *Group {
 // to the executable's directory.
 // If the file exists, it is served with a 200 status code.
 // If the file does not exist, a 404 status code is returned with the text "Not Found".
+// Accessing files outside the root directory is blocked to prevent path traversal attacks.
 func (app *Application) Static(root string, prefix string) {
 	exPath := ""
 	if filepath.IsAbs(root) {
@@ -209,10 +230,24 @@ func (app *Application) Static(root string, prefix string) {
 		}
 	}
 
-	app.Get(path.Join(prefix, "/*"), func(ctx *Context) {
-		fullFilePath := filepath.Join(exPath, root, strings.TrimPrefix(ctx.Path, prefix))
+	absRoot := filepath.Clean(filepath.Join(exPath, root))
 
-		if _, err := os.Stat(fullFilePath); !os.IsNotExist(err) {
+	app.Get(path.Join(prefix, "/*"), func(ctx *Context) {
+		relativePath := strings.TrimPrefix(ctx.Path, prefix)
+
+		if strings.Contains(relativePath, "..") {
+			ctx.Text(StatusForbidden, "Forbidden")
+			return
+		}
+
+		fullFilePath := filepath.Clean(filepath.Join(absRoot, relativePath))
+
+		if !strings.HasPrefix(fullFilePath, absRoot+string(os.PathSeparator)) && fullFilePath != absRoot {
+			ctx.Text(StatusForbidden, "Forbidden")
+			return
+		}
+
+		if info, err := os.Stat(fullFilePath); err == nil && !info.IsDir() {
 			ctx.SkipFlush()
 			ctx.SetStatus(StatusOK)
 			ctx.ctx.SendFile(fullFilePath)
@@ -266,6 +301,7 @@ func (app *Application) acquireContext(ctx *fasthttp.RequestCtx) *Context {
 	c.ctx = ctx
 	c.req = newRequest(ctx)
 	c.res = newResponse(ctx)
+	c.req.app = app
 	c.Method = c.req.method()
 	c.Path = c.req.path()
 	c.App = app
@@ -340,4 +376,45 @@ func (app *Application) Shutdown() {
 	if app.server != nil {
 		app.server.Shutdown()
 	}
+}
+
+// parseTrustedProxies parses the TrustedProxies config into CIDR networks.
+func (app *Application) parseTrustedProxies() {
+	if app.Config.TrustedProxies == nil {
+		return
+	}
+	for _, cidr := range app.Config.TrustedProxies {
+		if !strings.Contains(cidr, "/") {
+			cidr += "/32"
+		}
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			app.Logger.Warn("Invalid trusted proxy CIDR: %s", cidr)
+			continue
+		}
+		app.trustedProxies = append(app.trustedProxies, network)
+	}
+}
+
+// isTrustedProxy checks if the given IP address belongs to a trusted proxy.
+func (app *Application) isTrustedProxy(addr string) bool {
+	if len(app.trustedProxies) == 0 {
+		return false
+	}
+
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		host = addr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+
+	for _, network := range app.trustedProxies {
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }

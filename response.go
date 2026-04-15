@@ -3,6 +3,7 @@ package lightning
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/valyala/fasthttp"
 )
@@ -65,7 +66,8 @@ func (r *response) delHeader(key string) {
 
 func (r *response) sendFile() {
 	base := filepath.Base(r.filePath)
-	r.ctx.Response.Header.Set(HeaderContentDisposition, "attachment; filename="+base)
+	sanitized := strings.ReplaceAll(base, `"`, `\"`)
+	r.ctx.Response.Header.Set(HeaderContentDisposition, `attachment; filename="`+sanitized+`"`)
 	r.ctx.SendFile(r.filePath)
 }
 
