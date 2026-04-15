@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -911,23 +912,294 @@ func TestContext_AcceptedLanguages(t *testing.T) {
 }
 
 func TestContext_File(t *testing.T) {
-	tmpFile, err := os.CreateTemp("", "test*.txt")
+	tmpFile, err := os.CreateTemp("", "testfile_*.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.Remove(tmpFile.Name())
-
-	content := []byte("test content")
-	if _, err := tmpFile.Write(content); err != nil {
-		t.Fatal(err)
-	}
+	tmpFile.WriteString("hello world")
 	tmpFile.Close()
+	defer os.Remove(tmpFile.Name())
 
 	c, _ := createTestContext("GET", "/test", nil)
 
 	err = c.File(tmpFile.Name())
 	if err != nil {
 		t.Errorf("File() returned error: %v", err)
+	}
+}
+
+func TestContext_SetCookieWithConfig(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+
+	c.SetCookieWithConfig(CookieConfig{
+		Name:     "session",
+		Value:    "abc123",
+		Path:     "/",
+		Domain:   "example.com",
+		MaxAge:   3600,
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: "Strict",
+	})
+
+	cookie := string(ctx.Response.Header.Peek("Set-Cookie"))
+	if cookie == "" {
+		t.Fatal("Expected Set-Cookie header to be set")
+	}
+	if !strings.Contains(cookie, "session=abc123") {
+		t.Errorf("Expected cookie to contain 'session=abc123', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "path=/") {
+		t.Errorf("Expected cookie to contain 'path=/', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "domain=example.com") {
+		t.Errorf("Expected cookie to contain 'domain=example.com', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "secure") {
+		t.Errorf("Expected cookie to contain 'secure', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "HttpOnly") {
+		t.Errorf("Expected cookie to contain 'HttpOnly', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "SameSite=Strict") {
+		t.Errorf("Expected cookie to contain 'SameSite=Strict', got '%s'", cookie)
+	}
+	if !strings.Contains(cookie, "max-age=3600") {
+		t.Errorf("Expected cookie to contain 'max-age=3600', got '%s'", cookie)
+	}
+}
+
+func TestContext_SetCookieWithConfigLax(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+	c.SetCookieWithConfig(CookieConfig{
+		Name:     "test",
+		Value:    "val",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: "Lax",
+	})
+	cookie := string(ctx.Response.Header.Peek("Set-Cookie"))
+	if !strings.Contains(cookie, "SameSite=Lax") {
+		t.Errorf("Expected SameSite=Lax, got '%s'", cookie)
+	}
+}
+
+func TestContext_SetCookieWithConfigNone(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+	c.SetCookieWithConfig(CookieConfig{
+		Name:     "test",
+		Value:    "val",
+		Secure:   true,
+		HttpOnly: true,
+		SameSite: "None",
+	})
+	cookie := string(ctx.Response.Header.Peek("Set-Cookie"))
+	if !strings.Contains(cookie, "SameSite=None") {
+		t.Errorf("Expected SameSite=None, got '%s'", cookie)
+	}
+}
+
+func TestContext_SetCookieWithConfigMinimal(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+	c.SetCookieWithConfig(CookieConfig{
+		Name:  "minimal",
+		Value: "only",
+	})
+	cookie := string(ctx.Response.Header.Peek("Set-Cookie"))
+	if !strings.Contains(cookie, "minimal=only") {
+		t.Errorf("Expected cookie 'minimal=only', got '%s'", cookie)
+	}
+}
+
+func TestContext_FileFromSafeDir_Success(t *testing.T) {
+	tmpDir := t.TempDir()
+	tmpFile, err := os.CreateTemp(tmpDir, "safe_*.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpFile.WriteString("safe content")
+	tmpFile.Close()
+
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err = c.FileFromSafeDir(tmpDir, filepath.Base(tmpFile.Name()))
+	if err != nil {
+		t.Errorf("FileFromSafeDir() returned unexpected error: %v", err)
+	}
+}
+
+func TestContext_FileFromSafeDir_Traversal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.FileFromSafeDir(tmpDir, "../../../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for path traversal, got nil")
+	}
+}
+
+func TestContext_FileFromSafeDir_EscapesDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "sub")
+	os.Mkdir(subDir, 0755)
+
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.FileFromSafeDir(subDir, "../../etc/passwd")
+	if err == nil {
+		t.Error("Expected error for escaping directory, got nil")
+	}
+}
+
+func TestContext_FileFromSafeDir_NotFound(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.FileFromSafeDir(tmpDir, "nonexistent.txt")
+	if err == nil {
+		t.Error("Expected error for non-existent file, got nil")
+	}
+}
+
+func TestContext_RedirectSafe_RelativePath(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "/new-path", "example.com")
+	if err != nil {
+		t.Errorf("RedirectSafe() returned unexpected error: %v", err)
+	}
+	if c.res.redirectTo != "/new-path" {
+		t.Errorf("Expected redirectTo '/new-path', got '%s'", c.res.redirectTo)
+	}
+
+	c.flush()
+	loc := string(ctx.Response.Header.Peek("Location"))
+	if !strings.Contains(loc, "/new-path") {
+		t.Errorf("Expected Location to contain '/new-path', got '%s'", loc)
+	}
+}
+
+func TestContext_RedirectSafe_AllowedHost(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "https://example.com/target", "example.com")
+	if err != nil {
+		t.Errorf("RedirectSafe() returned unexpected error: %v", err)
+	}
+}
+
+func TestContext_RedirectSafe_DisallowedHost(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "https://evil.com/phishing", "example.com")
+	if err == nil {
+		t.Error("Expected error for disallowed host, got nil")
+	}
+}
+
+func TestContext_RedirectSafe_EmptyURL(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "", "example.com")
+	if err == nil {
+		t.Error("Expected error for empty URL, got nil")
+	}
+}
+
+func TestContext_RedirectSafe_DoubleSlash(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "//evil.com", "example.com")
+	if err == nil {
+		t.Error("Expected error for double-slash URL, got nil")
+	}
+}
+
+func TestContext_RedirectSafe_HTTPAllowedHost(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "http://example.com/page", "example.com")
+	if err != nil {
+		t.Errorf("RedirectSafe() returned unexpected error: %v", err)
+	}
+}
+
+func TestContext_RedirectSafe_ExactHostURL(t *testing.T) {
+	c, _ := createTestContext("GET", "/test", nil)
+
+	err := c.RedirectSafe(StatusFound, "https://example.com", "example.com")
+	if err != nil {
+		t.Errorf("RedirectSafe() returned unexpected error: %v", err)
+	}
+}
+
+func TestIsSafeRedirectURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		url         string
+		allowedHost []string
+		safe        bool
+	}{
+		{"relative path", "/foo", nil, true},
+		{"absolute https allowed", "https://example.com/foo", []string{"example.com"}, true},
+		{"absolute http allowed", "http://example.com/foo", []string{"example.com"}, true},
+		{"disallowed host", "https://evil.com", []string{"example.com"}, false},
+		{"empty url", "", nil, false},
+		{"double slash", "//evil.com", nil, false},
+		{"exact https match", "https://example.com", []string{"example.com"}, true},
+		{"exact http match", "http://example.com", []string{"example.com"}, true},
+		{"no allowed hosts", "https://example.com/foo", nil, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isSafeRedirectURL(tt.url, tt.allowedHost...)
+			if result != tt.safe {
+				t.Errorf("isSafeRedirectURL(%q, %v) = %v, want %v", tt.url, tt.allowedHost, result, tt.safe)
+			}
+		})
+	}
+}
+
+func TestContext_JSONEncodingFailure(t *testing.T) {
+	c, ctx := createTestContext("GET", "/test", nil)
+
+	c.JSON(StatusOK, func() {})
+	c.flush()
+
+	if ctx.Response.StatusCode() != StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d", StatusInternalServerError, ctx.Response.StatusCode())
+	}
+
+	body := string(ctx.Response.Body())
+	if !strings.Contains(body, "Internal Server Error") {
+		t.Errorf("Expected error message in body, got '%s'", body)
+	}
+}
+
+func TestContext_HTMLTemplateErrorSanitized(t *testing.T) {
+	app := NewApp()
+	app.htmlTemplates = template.Must(template.New("bad").Parse("{{.Field}}"))
+
+	app.Get("/bad", func(c *Context) {
+		c.HTML(StatusOK, "bad", "string-not-struct")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/bad")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d", StatusInternalServerError, ctx.Response.StatusCode())
+	}
+
+	body := string(ctx.Response.Body())
+	if strings.Contains(body, "template") || strings.Contains(body, "Field") {
+		t.Errorf("Template error details leaked to client: '%s'", body)
+	}
+	if body != "Internal Server Error" {
+		t.Errorf("Expected generic error message, got '%s'", body)
 	}
 }
 

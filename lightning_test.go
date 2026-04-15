@@ -1240,3 +1240,210 @@ func TestServeRequestWithNotFoundRoute(t *testing.T) {
 		t.Errorf("Expected status %d, got %d", StatusNotFound, ctx.Response.StatusCode())
 	}
 }
+
+func TestHelmet(t *testing.T) {
+	app := NewApp()
+	app.Use(Helmet())
+	app.Get("/test", func(c *Context) {
+		c.Text(StatusOK, "ok")
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/test")
+	app.serveRequest(ctx)
+
+	tests := []struct {
+		header string
+		want   string
+	}{
+		{"X-Content-Type-Options", "nosniff"},
+		{"X-Frame-Options", "DENY"},
+		{"X-XSS-Protection", "1; mode=block"},
+		{"Referrer-Policy", "strict-origin-when-cross-origin"},
+	}
+
+	for _, tt := range tests {
+		got := string(ctx.Response.Header.Peek(tt.header))
+		if got != tt.want {
+			t.Errorf("Expected %s=%q, got %q", tt.header, tt.want, got)
+		}
+	}
+}
+
+func TestStaticPathTraversalBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "safe.txt"), []byte("safe"), 0644)
+
+	app := NewApp()
+	app.Static(tmpDir, "/static")
+
+	ctx := createFasthttpRequest(MethodGet, "/static/../etc/passwd")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound && ctx.Response.StatusCode() != StatusForbidden {
+		t.Errorf("Expected 404 or 403 for path traversal, got %d", ctx.Response.StatusCode())
+	}
+
+	body := string(ctx.Response.Body())
+	if strings.Contains(body, "root:") {
+		t.Error("Path traversal succeeded — /etc/passwd was read!")
+	}
+}
+
+func TestStaticPathEscapeBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+	subDir := filepath.Join(tmpDir, "assets")
+	os.Mkdir(subDir, 0755)
+
+	app := NewApp()
+	app.Static(subDir, "/static")
+
+	ctx := createFasthttpRequest(MethodGet, "/static/../../../etc/passwd")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound && ctx.Response.StatusCode() != StatusForbidden {
+		t.Errorf("Expected 404 or 403 for path escape, got %d", ctx.Response.StatusCode())
+	}
+
+	body := string(ctx.Response.Body())
+	if strings.Contains(body, "root:") {
+		t.Error("Path escape succeeded — /etc/passwd was read!")
+	}
+}
+
+func TestStaticDirectoryListingBlocked(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "subdir"), 0755)
+
+	app := NewApp()
+	app.Static(tmpDir, "/static")
+
+	ctx := createFasthttpRequest(MethodGet, "/static/subdir")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusNotFound {
+		t.Errorf("Expected status %d for directory, got %d", StatusNotFound, ctx.Response.StatusCode())
+	}
+}
+
+func TestParseTrustedProxies_Valid(t *testing.T) {
+	app := NewApp(&Config{TrustedProxies: []string{"192.168.1.0/24", "10.0.0.1"}})
+
+	if len(app.trustedProxies) != 2 {
+		t.Fatalf("Expected 2 trusted proxies, got %d", len(app.trustedProxies))
+	}
+
+	if !app.isTrustedProxy("192.168.1.100:8080") {
+		t.Error("Expected 192.168.1.100 to be trusted")
+	}
+	if app.isTrustedProxy("192.168.2.1:8080") {
+		t.Error("Expected 192.168.2.1 to NOT be trusted")
+	}
+	if !app.isTrustedProxy("10.0.0.1:8080") {
+		t.Error("Expected 10.0.0.1 to be trusted")
+	}
+}
+
+func TestParseTrustedProxies_InvalidCIDR(t *testing.T) {
+	app := NewApp(&Config{TrustedProxies: []string{"not-a-valid-cidr"}})
+
+	if len(app.trustedProxies) != 0 {
+		t.Errorf("Expected 0 trusted proxies for invalid CIDR, got %d", len(app.trustedProxies))
+	}
+}
+
+func TestParseTrustedProxies_Nil(t *testing.T) {
+	app := NewApp()
+
+	if len(app.trustedProxies) != 0 {
+		t.Errorf("Expected 0 trusted proxies for nil config, got %d", len(app.trustedProxies))
+	}
+}
+
+func TestIsTrustedProxy_NoProxies(t *testing.T) {
+	app := NewApp()
+
+	if app.isTrustedProxy("127.0.0.1:8080") {
+		t.Error("Expected no proxy to be trusted when TrustedProxies is empty")
+	}
+}
+
+func TestIsTrustedProxy_InvalidIP(t *testing.T) {
+	app := NewApp(&Config{TrustedProxies: []string{"127.0.0.1"}})
+
+	if app.isTrustedProxy("not-an-ip") {
+		t.Error("Expected invalid IP to not be trusted")
+	}
+}
+
+func TestIsTrustedProxy_NoPort(t *testing.T) {
+	app := NewApp(&Config{TrustedProxies: []string{"127.0.0.1"}})
+
+	if !app.isTrustedProxy("127.0.0.1") {
+		t.Error("Expected 127.0.0.1 without port to be trusted")
+	}
+}
+
+func TestDebugEndpointWithToken(t *testing.T) {
+	app := NewApp(&Config{
+		EnableDebug: true,
+		DebugToken:  "secret123",
+	})
+
+	ctx := createFasthttpRequest(MethodGet, "/__debug__/router_map")
+	app.serveRequest(ctx)
+
+	if ctx.Response.StatusCode() != StatusUnauthorized {
+		t.Errorf("Expected status %d without token, got %d", StatusUnauthorized, ctx.Response.StatusCode())
+	}
+
+	ctx2 := createFasthttpRequest(MethodGet, "/__debug__/router_map?token=secret123")
+	app.serveRequest(ctx2)
+
+	if ctx2.Response.StatusCode() != StatusOK {
+		t.Errorf("Expected status %d with valid token, got %d", StatusOK, ctx2.Response.StatusCode())
+	}
+
+	ctx3 := createFasthttpRequest(MethodGet, "/__debug__/router_map?token=wrong")
+	app.serveRequest(ctx3)
+
+	if ctx3.Response.StatusCode() != StatusUnauthorized {
+		t.Errorf("Expected status %d with wrong token, got %d", StatusUnauthorized, ctx3.Response.StatusCode())
+	}
+}
+
+func TestConfigMergeTrustedProxies(t *testing.T) {
+	cfg := &Config{}
+	merged := cfg.merge(&Config{
+		TrustedProxies: []string{"10.0.0.0/8"},
+	})
+
+	if len(merged.TrustedProxies) != 1 || merged.TrustedProxies[0] != "10.0.0.0/8" {
+		t.Errorf("Expected TrustedProxies to be merged, got %v", merged.TrustedProxies)
+	}
+}
+
+func TestConfigMergeDebugToken(t *testing.T) {
+	cfg := &Config{}
+	merged := cfg.merge(&Config{
+		DebugToken: "mytoken",
+	})
+
+	if merged.DebugToken != "mytoken" {
+		t.Errorf("Expected DebugToken 'mytoken', got '%s'", merged.DebugToken)
+	}
+}
+
+func TestRemoteAddrWithoutTrustedProxies(t *testing.T) {
+	ctx := &fasthttp.RequestCtx{}
+	ctx.Request.Header.SetMethod("GET")
+	ctx.Request.Header.SetRequestURI("/test")
+	ctx.Request.Header.Set("X-Real-IP", "1.2.3.4")
+
+	r := newRequest(ctx)
+	r.app = NewApp()
+	addr := r.remoteAddr()
+
+	if addr == "1.2.3.4" {
+		t.Error("Expected X-Real-IP to be ignored when no TrustedProxies configured")
+	}
+}
